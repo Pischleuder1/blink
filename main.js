@@ -7,8 +7,8 @@
 // The adapter-core module gives you access to the core ioBroker functions
 // you need to create an adapter
 const utils = require('@iobroker/adapter-core');
-const fs = require("fs");
-const path = require("path");
+const fs = require("node:fs");
+const path = require("node:path");
 const blinkApi = require("./lib/blink-api");
 
 // Load your modules here, e.g.:
