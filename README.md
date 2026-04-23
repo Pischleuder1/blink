@@ -15,7 +15,7 @@
 ioBroker adapter for Blink cameras
 
 ## Developer manual
-This section is intended for the developer. It can be deleted later.
+* coming soon
 
 ### DISCLAIMER
 
@@ -31,7 +31,7 @@ More to come
 * (Pischleuder1) initial release
 
 ## Changelog
-* nothing 
+* Version 0.0.1 initial release
 
 
 ## License
