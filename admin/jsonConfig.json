@@ -6,18 +6,27 @@
       "type": "text",
       "label": "Blink Benutzername / E-Mail",
       "sm": 12,
+      "xs": 12,
+      "lg": 4,
+      "xl": 4,
       "md": 6
     },
     "password": {
       "type": "password",
       "label": "Passwort",
       "sm": 12,
+      "xs": 12,
+      "lg": 4,
+      "xl": 4,
       "md": 6
     },
     "pin": {
       "type": "password",
       "label": "PIN / 2FA-Code (optional)",
       "sm": 12,
+      "xs": 12,
+      "lg": 4,
+      "xl": 4,
       "md": 6
     },
     "pollIntervalSec": {
@@ -27,6 +36,9 @@
       "max": 3600,
       "default": 60,
       "sm": 12,
+      "xs": 12,
+      "lg": 4,
+      "xl": 4,
       "md": 6
     },
     "snapshotDir": {
@@ -34,6 +46,9 @@
       "label": "Snapshot-Verzeichnis",
       "default": "/opt/iobroker/iobroker-data/blinkpy",
       "sm": 12,
+      "xs": 12,
+      "lg": 4,
+      "xl": 4,
       "md": 6
     },
     "liveSnapshotEnabled": {
