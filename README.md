@@ -8,36 +8,34 @@
 
 [![NPM](https://nodei.co/npm/iobroker.blink.png?downloads=true)](https://nodei.co/npm/iobroker.blink/)
 
-**Tests:** ![Test and Release](https://github.com/Pischleuder1/ioBroker.blink/workflows/Test%20and%20Release/badge.svg)
 
 ## blink adapter for ioBroker
 
 ioBroker adapter for Blink cameras
 
+### Getting started
+
+Install via the ioBroker Admin interface : https://github.com/Pischleuder1/ioBroker.blink
+
 ## Developer manual
+
 * coming soon
 
 ### DISCLAIMER
 
 All product and company names or logos are trademarks™ or registered® trademarks of their respective holders. Use of them does not imply any affiliation with or endorsement by them or any associated subsidiaries! This personal project is maintained in spare time and has no business goal. Blink is a trademark of Amazon Technologies, Inc..
 
-
-### Getting started
-
-More to come 
-
-
-### **WORK IN PROGRESS**
-* (Pischleuder1) initial release
-
 ## Changelog
+
 ### 0.0.2 (2026-04-24)
 * update language
+* Updated Blink API integration and package metadata.
   
 ### 0.0.1 (2026-04-23)
 * initial release
 
 ## License
+
 MIT License
 
 Copyright (c) 2026 Pischleuder1 <pischleuder@gmx.de>
