@@ -82,7 +82,6 @@
 			}
 		]
 	},
-	"jsonConfig": true,
 	"encryptedNative": [
 		"password"
 	],
