@@ -35,50 +35,64 @@ The following can be accessed via the corresponding states:
 * Images can be written to a state in base64 format
 * Automatic deletion after a time interval
 
-|  cameras |   | Type  | Value | Explanation
-| -
-| battery |  LastMessage  |  text   |text message | message via pushover 
-|  |LastWarning |  date| date message | date of last warning
-|  |  low | state  | true / false  
-|   | WarningSent  | state  | true / false  
-| commands |  clearSession  |  state  | true / false   
-|  |fetch_video|  state| true / false |  get last saved video
-|  |  motion_detect | state  | true / false  | normally set by.app
-|   | snapshot  | state  | true / false | take a current snapshot 
-|   | snapshotfile  | state  | directory   | path where snapshot is saved
-| info |  name  |  state  | text | camera name   
-|  |network_id|  state| text | network id of camera 
-|  |  serial | state  | text | serial number of camera  
-| live |  file  |  state | text  | path and filename of the snapshot   
-|  |image_base64|  state| text |  base64 encoded file
-|  |  mimetype| state  | text  | image/jpeg
-|   | timestamp  | state  | date | timestamp of the saved snapshot 
-| status |  armed  |  state | true / false  | is camera armed or not
-|  |battery|  state| value.battery |  battery charge level in volt
-|  |  battery_raw| state  | value.battery | battery charge level in raw data
-|   | motion_detect_enabled | state  | true / false | 
-|   | temperature | value.temperature  | number | temperature in volts 
-|   | temperature_f | value.temperature  | number | temperature in fahrenheit
-| video |  file |  state | true / false  | is camera armed or not
-|  |id|  state| value.battery |  battery charge level in volt
-|  |  lastError| state  | text | if error occurs
-|   | ready | state  | true / false | 
-|   | size | state | value  | size of file
-|   | timestamp | state  | date | timestamp of the saved videofile
+## States
+This adapter provides the following states:
+
+### Cameras
 
 
+| State | Type | Role | Explanation |
+| :--- | :--- | :--- | :--- |
+| **battery.LastMessage** | text | info.status | Last message via pushover |
+| **battery.LastWarning** | date | info.status | Date of the last battery warning |
+| **battery.low** | boolean | indicator.lowbat | True if battery is low |
+| **battery.WarningSent** | boolean | indicator.maintenance | Indicates if a warning was already sent |
+| **commands.clearSession** | boolean | button | Clear the current session |
+| **commands.fetch_video** | boolean | button | Fetch the last saved video |
+| **commands.motion_detect** | boolean | switch | Toggle motion detection (set by app) |
+| **commands.snapshot** | boolean | button | Trigger a manual snapshot |
+| **commands.snapshotfile** | text | value.path | Directory path of the saved snapshot |
+| **info.name** | text | info.name | Name of the camera |
+| **info.network_id** | text | info.name | Network ID of the camera |
+| **info.serial** | text | info.serial | Serial number of the camera |
+| **live.file** | text | value.path | Path and filename of the snapshot |
+| **live.image_base64** | text | value.image | Base64 encoded image string |
+| **live.mimetype** | text | info.type | Mimetype of the image (e.g. image/jpeg) |
+| **live.timestamp** | date | value.datetime | Timestamp of the saved snapshot |
+| **status.armed** | boolean | switch.enable | Camera armed status |
+| **status.battery** | number | value.battery | Battery charge level in Volts |
+| **status.battery_raw** | number | value.battery | Raw battery data |
+| **status.motion_detect_enabled** | boolean | indicator.status | Status of motion detection |
+| **status.temperature** | number | value.temperature | Temperature in Volts (raw) |
+| **status.temperature_f** | number | value.temperature | Temperature in Fahrenheit |
+| **video.file** | text | value.path | Filename of the last video |
+| **video.id** | text | info.name | Video identification ID |
+| **video.lastError** | text | info.error | Last error message |
+| **video.ready** | boolean | indicator.status | Video is ready for download |
+| **video.size** | number | value.size | File size of the video |
+| **video.timestamp** | date | value.datetime | Timestamp of the video |
 
-|  info |  | Type | Value | Explanation |
-| -
-| connection | |  state  |  true / false | connection status to blink cloud
+---
 
-|  sync module id |   | Type  | Value | Explanation
-| -
-| commands |   armed   | state | true / false | arme manually 
-|  info| name |  text | text | name of sync module
-| |  serial | state  | text | serial nr. of sync module | 
-|  status| armed |  state | true / false | status of sync module 
-| |  last_update | state  | date | timestamp of status | 
+### Info (Global)
+
+
+| State | Type | Role | Explanation |
+| :--- | :--- | :--- | :--- |
+| **connection** | boolean | indicator.connected | Connection status to Blink Cloud |
+
+---
+
+### Sync Module
+
+
+| State | Type | Role | Explanation |
+| :--- | :--- | :--- | :--- |
+| **commands.armed** | boolean | switch.enable | Arm/Disarm sync module manually |
+| **info.name** | text | info.name | Name of the sync module |
+| **info.serial** | text | info.serial | Serial number of the sync module |
+| **status.armed** | boolean | indicator.status | Current arming status |
+| **status.last_update** | date | value.datetime | Last status update timestamp |
 
 
 ## DISCLAIMER
