@@ -2,6 +2,7 @@ version: 2
 updates:
   - package-ecosystem: npm
     directory: "/"
+    cooldown: { default: 7 }
     schedule:
       interval: monthly
       day: 20
