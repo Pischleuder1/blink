@@ -1,9 +1,13 @@
 {
 	"common": {
 		"name": "blink",
-		"version": "0.0.4",
+		"version": "0.0.5",
 		"news": {
-                        
+                        "0.0.5": {
+                               "en": "new admin menu, checkbox to turn log on / off",
+                               "de": "neues Admin Menü, checkbox, um log an /auszuschalten",
+                               "ru": "Новое меню администратора, Log можно включить/выключить"
+                                },
                        "0.0.4": {
                                "en": "integrated Amazon Video Doorbell",
                                "de": "Amazon Video Doorbell integriert",

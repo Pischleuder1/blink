@@ -28,12 +28,13 @@ The following can be accessed via the corresponding states:
 * The current snapshot of each camera can be retrieved
 * The temperature of each camera  
 * The battery status 
-* Low battery status can be sent via Pushover
+* Low battery status can be sent via Pushover or Telegram
 * The status of the sync module 
 * Corresponding image and video files are stored under /opt/iobroker/iobroker-data/blink
 * The storage location can be set in the admin area
 * Images can be written to a state in base64 format
 * Automatic deletion after a time interval
+* Test integration of Video Doorbell
 
 ## States
 This adapter provides the following states:
@@ -100,6 +101,10 @@ This adapter provides the following states:
 All product and company names or logos are trademarks™ or registered® trademarks of their respective holders. Use of them does not imply any affiliation with or endorsement by them or any associated subsidiaries! This personal project is maintained in spare time and has no business goal. Blink is a trademark of Amazon Technologies, Inc..
 
 ## Changelog
+### 0.0.5 (2026-04-27)
+* new admin menu
+* checkbox to turn log on/off
+
 ### 0.0.4 (2026-04-26)
 * integrated Amazon Video Doorbell
 * Log is now deleted after adapter restart

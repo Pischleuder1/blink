@@ -70,6 +70,17 @@
           "xl": 4,
           "md": 6
         },
+        "debugLogEnabled": {
+          "type": "checkbox",
+          "label": "Blink Debug-Log aktivieren",
+          "help": "Schreibt /tmp/blink_debug.log",
+          "default": false,
+          "sm": 12,
+          "xs": 12,
+          "lg": 4,
+          "xl": 4,
+          "md": 6
+        },
         "liveSnapshotEnabled": {
           "type": "checkbox",
           "label": "Livebild per Snapshot aktivieren",
@@ -166,7 +177,6 @@
           "xl": 4,
           "md": 6
         },
-        
         "batteryWarningCooldownHours": {
           "type": "number",
           "label": "Warn-Cooldown pro Kamera (Stunden)",
@@ -179,7 +189,7 @@
           "lg": 4,
           "xl": 4,
           "md": 6
-        },                
+        },
         "notify_header": {
           "type": "header",
           "text": "Wenn status.battery_volt kleiner/gleich dem Grenzwert ist, wird pro Kamera höchstens einmal innerhalb des Cooldowns eine Pushover-Nachricht gesendet",
@@ -227,7 +237,6 @@
           "lg": 6,
           "xl": 6
         },
-
         "notify_pushover_enabled": {
           "type": "checkbox",
           "label": "Enable pushover notifications",
