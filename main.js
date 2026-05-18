@@ -33,7 +33,7 @@ class BlinkAdapter extends utils.Adapter {
 
 		try {
 			fs.rmSync('/tmp/blink_debug.log', { force: true });
-		} catch (e) {
+		} catch {
 			// ignore
 		}
 
@@ -78,7 +78,9 @@ class BlinkAdapter extends utils.Adapter {
 
 		try {
 			fs.mkdirSync(snapshotDir, { recursive: true });
-		} catch {}
+		} catch {
+			// ignore
+		}
 
 		await this.setObjectNotExistsAsync('info.connection', {
 			type: 'state',
@@ -404,7 +406,9 @@ class BlinkAdapter extends utils.Adapter {
 			try {
 				const b64 = fs.readFileSync(file).toString('base64');
 				await this.setStateAsync(`${base}.live.image_base64`, `data:image/jpeg;base64,${b64}`, true);
-			} catch {}
+			} catch {
+				// ignore
+			}
 		}
 	}
 
@@ -546,73 +550,73 @@ class BlinkAdapter extends utils.Adapter {
 	}
 
 	async checkBatteryWarning(devId, cam) {
-	const base = `cameras.${devId}`;
+		const base = `cameras.${devId}`;
 
-	const apiType = String(cam.apiType || '').toLowerCase();
-	const nameLc = String(cam.name || '').toLowerCase();
-	const serialLc = String(cam.serial || '').toLowerCase();
+		const apiType = String(cam.apiType || '').toLowerCase();
+		const nameLc = String(cam.name || '').toLowerCase();
+		const serialLc = String(cam.serial || '').toLowerCase();
 
-	const noBatteryDevice =
-		apiType === 'owl' ||
-		apiType === 'mini' ||
-		nameLc.includes('pantilt') ||
-		nameLc.includes('pan tilt') ||
-		nameLc.includes('blink mini') ||
-		nameLc.includes('mini') ||
-		serialLc.includes('mini');
+		const noBatteryDevice =
+			apiType === 'owl' ||
+			apiType === 'mini' ||
+			nameLc.includes('pantilt') ||
+			nameLc.includes('pan tilt') ||
+			nameLc.includes('blink mini') ||
+			nameLc.includes('mini') ||
+			serialLc.includes('mini');
 
-	// Minis / PanTilt grundsätzlich von Batteriewarnungen ausschließen
-	if (noBatteryDevice) {
-		await this.setStateAsync(`${base}.battery.low`, false, true);
-		await this.setStateAsync(`${base}.battery.warningSent`, false, true);
-                await this.setStateAsync(`${base}.battery.lastMessage`, 'no built in battery', true);
-		return;
-	}
-
-	const volt = this.toNum(cam.battery_volt ?? cam.battery);
-	const thresh = this.toNum(this.cfg.batteryWarningThresholdVolt) ?? 1.1;
-
-	if (volt === null) {
-		await this.setStateAsync(`${base}.battery.low`, false, true);
-		return;
-	}
-
-	const isLow = volt <= thresh;
-	await this.setStateAsync(`${base}.battery.low`, isLow, true);
-
-	if (!this.cfg.batteryWarningEnabled || !isLow) {
-		if (!isLow) {
+		// Minis / PanTilt grundsätzlich von Batteriewarnungen ausschließen
+		if (noBatteryDevice) {
+			await this.setStateAsync(`${base}.battery.low`, false, true);
 			await this.setStateAsync(`${base}.battery.warningSent`, false, true);
+			await this.setStateAsync(`${base}.battery.lastMessage`, 'no built in battery', true);
+			return;
 		}
-		return;
+
+		const volt = this.toNum(cam.battery_volt ?? cam.battery);
+		const thresh = this.toNum(this.cfg.batteryWarningThresholdVolt) ?? 1.1;
+
+		if (volt === null) {
+			await this.setStateAsync(`${base}.battery.low`, false, true);
+			return;
+		}
+
+		const isLow = volt <= thresh;
+		await this.setStateAsync(`${base}.battery.low`, isLow, true);
+
+		if (!this.cfg.batteryWarningEnabled || !isLow) {
+			if (!isLow) {
+				await this.setStateAsync(`${base}.battery.warningSent`, false, true);
+			}
+			return;
+		}
+
+		const cooldownMs = this.cfg.batteryWarningCooldownHours * 3600 * 1000;
+		const last = await this.getStateAsync(`${base}.battery.lastWarning`);
+		const lastTs = last?.val ? Date.parse(String(last.val)) : 0;
+
+		if (lastTs && Date.now() - lastTs < cooldownMs) {
+			return;
+		}
+
+		const msg = `Blink Batterie niedrig\n\nKamera: ${cam.name || devId}\nSpannung: ${volt.toFixed(2)} V\nGrenzwert: ${thresh.toFixed(2)} V`;
+		await this.setStateAsync(`${base}.battery.lastMessage`, msg, true);
+
+		try {
+			await new Promise((res, rej) => {
+				this.sendTo(
+					this.cfg.batteryWarningPushoverInst,
+					'send',
+					{ title: 'Blink Batterie niedrig', message: msg, priority: 0 },
+					r => (r?.error ? rej(new Error(String(r.error))) : res(r)),
+				);
+			});
+			await this.setStateAsync(`${base}.battery.warningSent`, true, true);
+			await this.setStateAsync(`${base}.battery.lastWarning`, new Date().toISOString(), true);
+		} catch (e) {
+			this.log.warn(`Pushover-Warnung fehlgeschlagen (${cam.name}): ${e?.message || e}`);
+		}
 	}
-
-	const cooldownMs = this.cfg.batteryWarningCooldownHours * 3600 * 1000;
-	const last = await this.getStateAsync(`${base}.battery.lastWarning`);
-	const lastTs = last?.val ? Date.parse(String(last.val)) : 0;
-
-	if (lastTs && Date.now() - lastTs < cooldownMs) {
-		return;
-	}
-
-	const msg = `Blink Batterie niedrig\n\nKamera: ${cam.name || devId}\nSpannung: ${volt.toFixed(2)} V\nGrenzwert: ${thresh.toFixed(2)} V`;
-	await this.setStateAsync(`${base}.battery.lastMessage`, msg, true);
-
-	try {
-		await new Promise((res, rej) => {
-			this.sendTo(
-				this.cfg.batteryWarningPushoverInst,
-				'send',
-				{ title: 'Blink Batterie niedrig', message: msg, priority: 0 },
-				r => (r?.error ? rej(new Error(String(r.error))) : res(r)),
-			);
-		});
-		await this.setStateAsync(`${base}.battery.warningSent`, true, true);
-		await this.setStateAsync(`${base}.battery.lastWarning`, new Date().toISOString(), true);
-	} catch (e) {
-		this.log.warn(`Pushover-Warnung fehlgeschlagen (${cam.name}): ${e?.message || e}`);
-	}
-}
 
 	cleanupSnapshots() {
 		const dir = this.cfg.snapshotDir;
@@ -636,7 +640,9 @@ class BlinkAdapter extends utils.Adapter {
 				if (now - fs.statSync(full).mtimeMs > maxAgeMs) {
 					fs.unlinkSync(full);
 				}
-			} catch {}
+			} catch {
+				// ignore
+			}
 		}
 	}
 
@@ -669,7 +675,7 @@ class BlinkAdapter extends utils.Adapter {
 	}
 
 	sanitizeId(id) {
-		return String(id).replace(/[^a-zA-Z0-9_\-]/g, '_');
+		return String(id).replace(/[^a-zA-Z0-9_-]/g, '_');
 	}
 
 	toNum(v) {
