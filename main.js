@@ -287,8 +287,7 @@ class BlinkAdapter extends utils.Adapter {
 
 		const doorbellNoTemp =
 			apiType === 'doorbell' &&
-			((tempC === null && tempF === null) ||
-				((tempC === 0 || tempC === null) && (tempF === 0 || tempF === null)));
+			((tempC === null && tempF === null) || ((tempC === 0 || tempC === null) && (tempF === 0 || tempF === null)));
 
 		if (doorbellNoTemp || (noTemperatureDevice && noTemperatureData)) {
 			await this.setStateAsync(`${base}.status.temperature`, { val: null, ack: true });
