@@ -4,8 +4,8 @@
  */
 
 const utils = require('@iobroker/adapter-core');
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 const blinkApi = require('./lib/blink-api');
 
 class BlinkAdapter extends utils.Adapter {
