@@ -281,7 +281,8 @@ class BlinkAdapter extends utils.Adapter {
 			nameLc.includes('mini') ||
 			serialLc.includes('mini');
 
-		const noTemperatureData = (tempC === null && tempF === null) || ((tempC === 0 || tempC === null) && (tempF === 0 || tempF === null));
+		const noTemperatureData =
+			(tempC === null && tempF === null) || ((tempC === 0 || tempC === null) && (tempF === 0 || tempF === null));
 
 		const doorbellNoTemp =
 			apiType === 'doorbell' &&
