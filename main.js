@@ -5,8 +5,11 @@
 
 const utils = require('@iobroker/adapter-core');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const blinkApi = require('./lib/blink-api');
+const { MjpegServer } = require('./lib/mjpeg-server');
 
 class BlinkAdapter extends utils.Adapter {
 	constructor(options = {}) {
@@ -20,11 +23,13 @@ class BlinkAdapter extends utils.Adapter {
 		this.liveInProgress = false;
 		this.liveSnapshotCursor = 0;
 		this.videoSyncInProgress = false;
-		this.videoCheckCooldownMs = 5 * 60 * 1000;
+		this.videoCheckCooldownMs = 25 * 1000;
 		this.lastVideoCheckByDevId = new Map();
 		this.camerasById = new Map();
 		this.syncById = new Map();
 		this.session = null;
+		this.mjpegServer = null;
+		this.mjpegStatusTimer = null;
 	}
 
 	async onReady() {
@@ -34,7 +39,7 @@ class BlinkAdapter extends utils.Adapter {
 		try {
 			fs.rmSync('/tmp/blink_debug.log', { force: true });
 		} catch {
-			// ignore
+			// Datei existiert evtl. nicht – das ist kein Fehler.
 		}
 
 		this.setState('info.connection', false, true);
@@ -54,6 +59,33 @@ class BlinkAdapter extends utils.Adapter {
 		const batteryWarningPushoverInst = (this.config.batteryWarningPushoverInstance || 'pushover.0').trim();
 		const batteryWarningCooldownHours = Math.max(1, Number(this.config.batteryWarningCooldownHours) || 24);
 
+		// MJPEG-Streaming-Konfiguration (alle Felder optional, Streaming ist opt-in)
+		const streamEnabled = this.config.streamEnabled === true;
+		const streamPort = Math.max(1024, Math.min(65535, Number(this.config.streamPort) || 8089));
+		let streamToken = (this.config.streamToken || '').trim();
+		const streamPublicHost = (this.config.streamPublicHost || '').trim();
+		const streamWiredIntervalSec = Math.max(5, Number(this.config.streamWiredIntervalSec) || 8);
+		const streamBatteryIntervalSec = Math.max(8, Number(this.config.streamBatteryIntervalSec) || 10);
+		const streamBatteryIdleTimeoutSec = Math.max(15, Number(this.config.streamBatteryIdleTimeoutSec) || 60);
+		const streamBatteryMinLevel = Math.max(0, Math.min(3, this.toNum(this.config.streamBatteryMinLevel) ?? 2));
+
+		// Token automatisch generieren, wenn leer und Streaming aktiv – und in
+		// der eigenen Adapter-Konfiguration persistieren, damit der Token nach
+		// einem Restart stabil bleibt und in der Admin-UI erscheint.
+		if (streamEnabled && !streamToken) {
+			streamToken = crypto.randomBytes(16).toString('hex');
+			this.log.info('Stream-Token wurde automatisch generiert und in der Adapter-Konfiguration gespeichert.');
+			try {
+				await this.extendForeignObjectAsync(`system.adapter.${this.namespace}`, {
+					native: { streamToken },
+				});
+			} catch (e) {
+				this.log.warn(
+					`Stream-Token konnte nicht persistiert werden – beim n\u00e4chsten Restart wird ein neuer generiert: ${e?.message || e}`,
+				);
+			}
+		}
+
 		this.cfg = {
 			email,
 			password,
@@ -69,6 +101,14 @@ class BlinkAdapter extends utils.Adapter {
 			batteryWarningThresholdVolt,
 			batteryWarningPushoverInst,
 			batteryWarningCooldownHours,
+			streamEnabled,
+			streamPort,
+			streamToken,
+			streamPublicHost,
+			streamWiredIntervalSec,
+			streamBatteryIntervalSec,
+			streamBatteryIdleTimeoutSec,
+			streamBatteryMinLevel,
 		};
 
 		if (!email || !password) {
@@ -79,7 +119,7 @@ class BlinkAdapter extends utils.Adapter {
 		try {
 			fs.mkdirSync(snapshotDir, { recursive: true });
 		} catch {
-			// ignore
+			// Verzeichnis existiert bereits oder kann nicht angelegt werden – beim Schreiben fällt das ohnehin auf.
 		}
 
 		await this.setObjectNotExistsAsync('info.connection', {
@@ -98,6 +138,9 @@ class BlinkAdapter extends utils.Adapter {
 				this.cleanupSnapshots();
 			}
 			this.setState('info.connection', true, true);
+			if (this.cfg.streamEnabled) {
+				await this.startMjpegServer();
+			}
 		} catch (e) {
 			this.log.error(`Initialer Connect/Poll fehlgeschlagen: ${e?.message || e}`);
 			this.setState('info.connection', false, true);
@@ -119,6 +162,15 @@ class BlinkAdapter extends utils.Adapter {
 				liveSnapshotIntervalSec * 1000,
 			);
 		}
+	}
+
+	findSyncIdForNetwork(networkId) {
+		for (const mod of this.syncById.values()) {
+			if (String(mod?.network_id) === String(networkId)) {
+				return mod?.sync_id || null;
+			}
+		}
+		return null;
 	}
 
 	async pollOnce() {
@@ -144,6 +196,10 @@ class BlinkAdapter extends utils.Adapter {
 
 		await this.syncLatestCloudVideos(cameras);
 		this.setState('info.connection', true, true);
+
+		if (this.mjpegServer) {
+			await this.refreshMjpegCameraRegistry();
+		}
 	}
 
 	async ensureDeviceObjects(base, cam) {
@@ -177,6 +233,26 @@ class BlinkAdapter extends utils.Adapter {
 		);
 		await this.ensureState(`${base}.status.armed`, 'Scharf (System)', 'boolean', 'indicator.armed', false);
 		await this.ensureState(`${base}.status.last_update`, 'Letztes Update', 'string', 'date', false);
+		await this.ensureState(
+			`${base}.status.smart_detection`,
+			'Smart Detection aktiv',
+			'boolean',
+			'indicator',
+			false,
+		);
+		await this.ensureState(`${base}.status.person_detected`, 'Person erkannt', 'boolean', 'indicator', false);
+		await this.ensureState(`${base}.status.vehicle_detected`, 'Fahrzeug erkannt', 'boolean', 'indicator', false);
+		await this.ensureState(`${base}.status.animal_detected`, 'Tier erkannt', 'boolean', 'indicator', false);
+		await this.ensureState(`${base}.status.package_detected`, 'Paket erkannt', 'boolean', 'indicator', false);
+		await this.ensureState(`${base}.status.detection_type`, 'Erkennungstyp', 'string', 'text', false);
+		await this.ensureState(
+			`${base}.status.smart_detection_raw`,
+			'Smart Detection Rohdaten',
+			'string',
+			'json',
+			false,
+		);
+		await this.ensureState(`${base}.status.motion_source`, 'Bewegungsquelle', 'string', 'text', false);
 
 		await this.ensureState(`${base}.battery.low`, 'Batterie niedrig', 'boolean', 'indicator.warning', false);
 		await this.ensureState(`${base}.battery.lastWarning`, 'Letzter Hinweis', 'string', 'date', false);
@@ -202,14 +278,63 @@ class BlinkAdapter extends utils.Adapter {
 		await this.ensureState(`${base}.video.ready`, 'MP4 bereit', 'boolean', 'indicator', false);
 		await this.ensureState(`${base}.video.lastError`, 'MP4 letzter Fehler', 'string', 'text', false);
 
+		// Galerie: 10 Slots pro Kamera (0 = neuester, 9 = ältester)
+		for (let i = 0; i < 10; i++) {
+			await this.ensureState(
+				`${base}.video.history.${i}.file`,
+				`History ${i} – MP4-Datei`,
+				'string',
+				'text',
+				false,
+			);
+			await this.ensureState(
+				`${base}.video.history.${i}.timestamp`,
+				`History ${i} – Zeitstempel`,
+				'string',
+				'date',
+				false,
+			);
+			await this.ensureState(`${base}.video.history.${i}.id`, `History ${i} – Clip-ID`, 'string', 'text', false);
+			await this.ensureState(
+				`${base}.video.history.${i}.source`,
+				`History ${i} – Quelle (cloud|local_storage)`,
+				'string',
+				'text',
+				false,
+			);
+		}
+
 		await this.ensureState(`${base}.live.file`, 'Live-Snapshot Datei', 'string', 'text', false);
 		await this.ensureState(`${base}.live.image_base64`, 'Live-Snapshot Base64', 'string', 'text', false);
 		await this.ensureState(`${base}.live.mime_type`, 'Bild MIME-Typ', 'string', 'text', false);
 		await this.ensureState(`${base}.live.timestamp`, 'Live-Snapshot Zeitstempel', 'string', 'date', false);
+		await this.ensureState(`${base}.live.stream_url`, 'MJPEG-Stream URL', 'string', 'text.url', false);
+		await this.ensureState(
+			`${base}.live.stream_active`,
+			'Stream wird aktuell gepollt',
+			'boolean',
+			'indicator',
+			false,
+		);
+		await this.ensureState(
+			`${base}.commands.live_request`,
+			'Stream-Polling manuell aktivieren (60s)',
+			'boolean',
+			'button',
+			true,
+		);
 
 		await this.initStateIfUnset(`${base}.status.armed`, false);
 		await this.initStateIfUnset(`${base}.status.battery_text`, '');
 		await this.initStateIfUnset(`${base}.status.temperature_text`, '');
+		await this.initStateIfUnset(`${base}.status.smart_detection`, false);
+		await this.initStateIfUnset(`${base}.status.person_detected`, false);
+		await this.initStateIfUnset(`${base}.status.vehicle_detected`, false);
+		await this.initStateIfUnset(`${base}.status.animal_detected`, false);
+		await this.initStateIfUnset(`${base}.status.package_detected`, false);
+		await this.initStateIfUnset(`${base}.status.detection_type`, '');
+		await this.initStateIfUnset(`${base}.status.smart_detection_raw`, '');
+		await this.initStateIfUnset(`${base}.status.motion_source`, '');
 		await this.initStateIfUnset(`${base}.battery.low`, false);
 		await this.initStateIfUnset(`${base}.battery.lastWarning`, '');
 		await this.initStateIfUnset(`${base}.battery.warningSent`, false);
@@ -225,10 +350,19 @@ class BlinkAdapter extends utils.Adapter {
 		await this.initStateIfUnset(`${base}.video.size`, 0);
 		await this.initStateIfUnset(`${base}.video.ready`, false);
 		await this.initStateIfUnset(`${base}.video.lastError`, '');
+		for (let i = 0; i < 10; i++) {
+			await this.initStateIfUnset(`${base}.video.history.${i}.file`, '');
+			await this.initStateIfUnset(`${base}.video.history.${i}.timestamp`, '');
+			await this.initStateIfUnset(`${base}.video.history.${i}.id`, '');
+			await this.initStateIfUnset(`${base}.video.history.${i}.source`, '');
+		}
 		await this.initStateIfUnset(`${base}.live.file`, '');
 		await this.initStateIfUnset(`${base}.live.image_base64`, '');
 		await this.initStateIfUnset(`${base}.live.mime_type`, '');
 		await this.initStateIfUnset(`${base}.live.timestamp`, '');
+		await this.initStateIfUnset(`${base}.live.stream_url`, '');
+		await this.initStateIfUnset(`${base}.live.stream_active`, false);
+		await this.initStateIfUnset(`${base}.commands.live_request`, false);
 	}
 
 	async setCameraStates(base, cam, devId) {
@@ -305,6 +439,14 @@ class BlinkAdapter extends utils.Adapter {
 
 		await this.setNumStateIfValid(`${base}.status.wifi_strength`, cam.wifi_strength);
 		await this.setBoolStateIfDefined(`${base}.status.motion_detect_enabled`, cam.motion_detect_enabled);
+		await this.setStateAsync(`${base}.status.smart_detection`, !!cam.smart_detection, true);
+		await this.setStateAsync(`${base}.status.person_detected`, !!cam.person_detected, true);
+		await this.setStateAsync(`${base}.status.vehicle_detected`, !!cam.vehicle_detected, true);
+		await this.setStateAsync(`${base}.status.animal_detected`, !!cam.animal_detected, true);
+		await this.setStateAsync(`${base}.status.package_detected`, !!cam.package_detected, true);
+		await this.setStateAsync(`${base}.status.detection_type`, String(cam.detection_type || ''), true);
+		await this.setStateAsync(`${base}.status.smart_detection_raw`, String(cam.smart_detection_raw || ''), true);
+		await this.setStateAsync(`${base}.status.motion_source`, String(cam.motion_source || ''), true);
 
 		const sync = [...this.syncById.values()].find(mod => String(mod?.network_id) === String(cam?.network_id));
 		const effectiveArmed = cam.armed != null ? cam.armed : sync?.armed != null ? sync.armed : null;
@@ -377,6 +519,14 @@ class BlinkAdapter extends utils.Adapter {
 			try {
 				await blinkApi.snapshot(this.session, cam.network_id, cam.id, cam.thumbnail, file, cam.apiType);
 				await this.setLiveStates(devId, file);
+				if (this.mjpegServer) {
+					try {
+						const buf = fs.readFileSync(file);
+						this.mjpegServer.pushSnapshot(devId, buf);
+					} catch {
+						// Cache-Push ist optional – Fehler nicht eskalieren.
+					}
+				}
 			} catch (e) {
 				const msg = String(e?.message || e);
 				if (msg.includes('HTTP 409') && msg.includes('System is busy')) {
@@ -406,9 +556,112 @@ class BlinkAdapter extends utils.Adapter {
 				const b64 = fs.readFileSync(file).toString('base64');
 				await this.setStateAsync(`${base}.live.image_base64`, `data:image/jpeg;base64,${b64}`, true);
 			} catch {
-				// ignore
+				// base64-State ist optional – Lesefehler nicht eskalieren.
 			}
 		}
+	}
+
+	resolveStreamHost() {
+		const override = (this.cfg.streamPublicHost || '').trim();
+		if (override) {
+			return override;
+		}
+		try {
+			const hn = (os.hostname() || '').trim();
+			if (hn && hn.toLowerCase() !== 'localhost') {
+				return hn;
+			}
+		} catch {
+			// Hostname-Auflösung fehlgeschlagen – weiter mit IP-Detection.
+		}
+		try {
+			const ifaces = os.networkInterfaces();
+			for (const list of Object.values(ifaces)) {
+				for (const addr of list || []) {
+					if (addr.family === 'IPv4' && !addr.internal && addr.address) {
+						return addr.address;
+					}
+				}
+			}
+		} catch {
+			// Netzwerk-Interfaces nicht ermittelbar.
+		}
+		return 'localhost';
+	}
+
+	async startMjpegServer() {
+		if (this.mjpegServer) {
+			return;
+		}
+		const publicHost = this.resolveStreamHost();
+		this.log.info(`MJPEG-Server: öffentliche URL-Basis http://${publicHost}:${this.cfg.streamPort}/`);
+
+		this.mjpegServer = new MjpegServer({
+			adapter: this,
+			port: this.cfg.streamPort,
+			token: this.cfg.streamToken,
+			publicHost,
+			wiredIntervalSec: this.cfg.streamWiredIntervalSec,
+			batteryIntervalSec: this.cfg.streamBatteryIntervalSec,
+			batteryIdleTimeoutSec: this.cfg.streamBatteryIdleTimeoutSec,
+			batteryMinLevel: this.cfg.streamBatteryMinLevel,
+		});
+
+		await this.refreshMjpegCameraRegistry();
+
+		try {
+			await this.mjpegServer.start();
+		} catch (e) {
+			this.log.error(`MJPEG-Server konnte nicht starten: ${e?.message || e}`);
+			this.mjpegServer = null;
+			return;
+		}
+
+		for (const devId of this.camerasById.keys()) {
+			await this.setStateAsync(`cameras.${devId}.live.stream_url`, this.mjpegServer.streamUrl(devId), true);
+		}
+
+		this.mjpegStatusTimer = setInterval(() => {
+			if (!this.mjpegServer) {
+				return;
+			}
+			for (const devId of this.camerasById.keys()) {
+				this.setStateAsync(`cameras.${devId}.live.stream_active`, this.mjpegServer.isActive(devId), true).catch(
+					() => {},
+				);
+			}
+		}, 5000);
+	}
+
+	async refreshMjpegCameraRegistry() {
+		if (!this.mjpegServer) {
+			return;
+		}
+		for (const [devId, cam] of this.camerasById.entries()) {
+			if (!cam?.id || !cam?.network_id) {
+				continue;
+			}
+			const apiType = String(cam.apiType || '').toLowerCase();
+			const wired = apiType === 'owl' || apiType === 'mini' || apiType === 'doorbell';
+			const meta = {
+				name: cam.name || devId,
+				apiType: apiType || 'camera',
+				wired,
+				batteryLevel: this.toNum(cam.battery_state) ?? null,
+			};
+			const fetchSnapshot = async () => {
+				return await blinkApi.snapshotBuffer(this.session, cam.network_id, cam.id, cam.thumbnail, cam.apiType);
+			};
+			this.mjpegServer.registerCamera(devId, meta, fetchSnapshot);
+		}
+	}
+
+	requestLive(devId) {
+		if (!this.mjpegServer) {
+			this.log.warn(`Stream-Anforderung ignoriert: MJPEG-Server nicht aktiv (${devId})`);
+			return;
+		}
+		this.mjpegServer.manualWake(devId);
 	}
 
 	async onStateChange(id, state) {
@@ -459,13 +712,26 @@ class BlinkAdapter extends utils.Adapter {
 					const ts = new Date().toISOString().replace(/[:.]/g, '-');
 					const file = path.join(this.cfg.snapshotDir, `${devId}_${ts}.mp4`);
 					try {
-						const res = await blinkApi.downloadVideo(this.session, cam.network_id, cam.id, file);
+						const res = await blinkApi.downloadLatestVideoSmart(
+							this.session,
+							cam.network_id,
+							cam.id,
+							cam.name,
+							file,
+							{ syncId: this.findSyncIdForNetwork(cam.network_id) },
+						);
 						await this.updateVideoStates(devId, res);
 					} catch (e) {
 						await this.setStateAsync(`cameras.${devId}.video.ready`, false, true);
 						await this.setStateAsync(`cameras.${devId}.video.lastError`, String(e?.message || e), true);
 						this.log.warn(`Video-Download fehlgeschlagen (${cam.name}): ${e?.message || e}`);
 					}
+					await this.setStateAsync(this.stripNs(id), false, true);
+				} else if (cmd === 'live_request') {
+					if (state.val !== true) {
+						return;
+					}
+					this.requestLive(devId);
 					await this.setStateAsync(this.stripNs(id), false, true);
 				}
 			} else if (group === 'sync') {
@@ -491,6 +757,29 @@ class BlinkAdapter extends utils.Adapter {
 			return;
 		}
 		this.videoSyncInProgress = true;
+
+		// Manifest-Cache pro Sync-Module für diesen Lauf – wird nur befüllt,
+		// wenn überhaupt jemand auf Local-Storage zurückfällt.
+		const manifestCacheBySyncId = new Map();
+		const getManifestFor = async (networkId, syncId) => {
+			if (!syncId) {
+				return null;
+			}
+			const key = String(syncId);
+			if (manifestCacheBySyncId.has(key)) {
+				return manifestCacheBySyncId.get(key);
+			}
+			try {
+				const m = await blinkApi.getLocalStorageClips(this.session, networkId, syncId);
+				manifestCacheBySyncId.set(key, m);
+				return m;
+			} catch (e) {
+				this.log.debug(`Local-Storage-Manifest nicht abrufbar (sync ${syncId}): ${e?.message || e}`);
+				manifestCacheBySyncId.set(key, null);
+				return null;
+			}
+		};
+
 		try {
 			for (const cam of cameras) {
 				const devId = this.sanitizeId(cam.id || cam.name);
@@ -501,9 +790,50 @@ class BlinkAdapter extends utils.Adapter {
 				this.lastVideoCheckByDevId.set(devId, Date.now());
 
 				try {
-					const latest = await blinkApi.getLatestVideoInfo(this.session, cam.network_id, cam.id);
-					if (!latest) {
-						continue;
+					let latest = null;
+					let useLocal = false;
+					try {
+						latest = await blinkApi.getLatestVideoInfo(this.session, cam.network_id, cam.id);
+					} catch (e) {
+						if (e?.code !== 'NO_VIDEO') {
+							throw e;
+						}
+						useLocal = true;
+					}
+
+					let summary;
+					let latestId;
+					let latestTs;
+					let localClip = null;
+					let localManifest = null;
+
+					if (useLocal) {
+						const syncId = this.findSyncIdForNetwork(cam.network_id);
+						localManifest = await getManifestFor(cam.network_id, syncId);
+						if (!localManifest) {
+							continue;
+						}
+						const matches = localManifest.clips
+							.filter(c => String(c.camera_name) === String(cam.name))
+							.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+						if (!matches.length) {
+							continue;
+						}
+						localClip = matches[0];
+						summary = { id: localClip.id, created_at: localClip.created_at };
+						latestId = String(localClip.id);
+						latestTs = String(localClip.created_at);
+					} else {
+						if (!latest) {
+							continue;
+						}
+						summary = {
+							id: latest?.id || latest?.video_id || null,
+							created_at: latest?.created_at || '',
+							...(await blinkApi.getLatestVideoSummary(this.session, cam.network_id, cam.id)),
+						};
+						latestId = String(summary.id || latest?.created_at || latest?.url || '');
+						latestTs = String(summary.created_at || '');
 					}
 
 					const tsState = await this.getStateAsync(`cameras.${devId}.video.timestamp`);
@@ -515,19 +845,39 @@ class BlinkAdapter extends utils.Adapter {
 					const currentFile = String(fileState?.val || '');
 					const haveLocalFile = currentFile && fs.existsSync(currentFile);
 
-					const latestId = String(latest.id || latest.video_id || latest.created_at || latest.url || '');
-					const latestTs = String(latest.created_at || '');
 					const isSameVideo =
 						(latestId && currentId && latestId === currentId) ||
 						(latestTs && currentTs && latestTs === currentTs);
 
 					if (isSameVideo && haveLocalFile) {
+						await this.updateDetectionStates(devId, summary);
 						continue;
 					}
 
 					const file = path.join(this.cfg.snapshotDir, `${devId}_latest.mp4`);
-					const res = await blinkApi.downloadVideo(this.session, cam.network_id, cam.id, file, latest);
+					let res;
+					if (useLocal) {
+						res = await blinkApi.downloadLocalClip(
+							this.session,
+							cam.network_id,
+							this.findSyncIdForNetwork(cam.network_id),
+							localManifest.manifestId,
+							localClip.id,
+							file,
+						);
+						res = { ...res, source: 'local_storage', created_at: localClip.created_at };
+					} else {
+						res = await blinkApi.downloadVideo(this.session, cam.network_id, cam.id, file, latest);
+					}
 					await this.updateVideoStates(devId, res);
+
+					// Galerie pflegen – läuft unabhängig vom Live-Sync-Pfad.
+					// Cloud wird intern bevorzugt, Local-Storage ist Fallback.
+					try {
+						await this.syncCameraHistory(cam, devId, localManifest);
+					} catch (e) {
+						this.log.debug(`History-Sync übersprungen (${cam.name || devId}): ${e?.message || e}`);
+					}
 				} catch (e) {
 					this.log.debug(`Cloud-Video Sync übersprungen (${cam.name || devId}): ${e?.message || e}`);
 				}
@@ -535,6 +885,153 @@ class BlinkAdapter extends utils.Adapter {
 		} finally {
 			this.videoSyncInProgress = false;
 		}
+	}
+
+	/**
+	 * Pflegt die Galerie der 10 neuesten Clips einer Kamera als Ring-Buffer.
+	 * Slot 0 ist der neueste Clip, Slot 9 der älteste. Quelle: zuerst Cloud
+	 * (schneller, kein Stick-Upload nötig), Fallback Local-Storage.
+	 *
+	 * @param {object} cam - Kamera-Objekt aus getDevices.
+	 * @param {string} devId - sanitized Device-ID.
+	 * @param {object} [localManifestHint] - Optionales bereits geholtes Local-Manifest.
+	 */
+	async syncCameraHistory(cam, devId, localManifestHint = null) {
+		const HISTORY_SIZE = 10;
+		const base = `cameras.${devId}.video.history`;
+
+		// 1) Vereinheitlichte Clip-Liste holen – Cloud zuerst, Local als Fallback.
+		const syncId = this.findSyncIdForNetwork(cam.network_id);
+		const { clips: wanted, source } = await blinkApi.getHistoryClips(
+			this.session,
+			cam.network_id,
+			cam.id,
+			cam.name,
+			{ syncId, localManifest: localManifestHint, limit: HISTORY_SIZE },
+		);
+
+		if (!wanted.length) {
+			return;
+		}
+
+		// 2) Bekannte Clip-IDs pro Slot einsammeln.
+		const knownIds = [];
+		for (let i = 0; i < HISTORY_SIZE; i++) {
+			const st = await this.getStateAsync(`${base}.${i}.id`);
+			knownIds.push(String(st?.val || ''));
+		}
+
+		// 3) Wenn dieselbe Reihenfolge derselben IDs in den Slots steht, nichts tun.
+		const wantedIds = wanted.map(c => String(c.id));
+		const same = wantedIds.every((id, idx) => id === knownIds[idx]);
+		if (same) {
+			return;
+		}
+
+		// 4) Für jeden Slot festlegen: Reuse aus altem Slot oder neu downloaden?
+		const slotFile = i => path.join(this.cfg.snapshotDir, `${devId}_history_${i}.mp4`);
+		const tmpFile = i => path.join(this.cfg.snapshotDir, `.${devId}_history_${i}.tmp.mp4`);
+
+		const sources = new Array(HISTORY_SIZE).fill(null); // 'reuse:<oldIdx>' | 'download'
+		for (let newIdx = 0; newIdx < wanted.length; newIdx++) {
+			const oldIdx = knownIds.indexOf(wantedIds[newIdx]);
+			sources[newIdx] = oldIdx >= 0 ? `reuse:${oldIdx}` : 'download';
+		}
+
+		// 4a) Reuse: alte Slot-Datei → Temp-Datei.
+		for (let i = 0; i < wanted.length; i++) {
+			const src = sources[i];
+			if (typeof src === 'string' && src.startsWith('reuse:')) {
+				const oldIdx = Number(src.slice(6));
+				const from = slotFile(oldIdx);
+				const to = tmpFile(i);
+				try {
+					fs.copyFileSync(from, to);
+				} catch (e) {
+					sources[i] = 'download';
+					this.log.debug(`History reuse fehlgeschlagen Slot ${oldIdx}→${i}: ${e.message}`);
+				}
+			}
+		}
+
+		// 4b) Download: je nach Quelle Cloud oder Local Storage.
+		for (let i = 0; i < wanted.length; i++) {
+			if (sources[i] !== 'download') {
+				continue;
+			}
+			const clip = wanted[i];
+			try {
+				if (source === 'cloud') {
+					await blinkApi.downloadCloudClip(this.session, clip, tmpFile(i));
+				} else {
+					// Local Storage – manifestId stammt aus dem Hint oder muss frisch geholt werden.
+					let manifestId = localManifestHint?.manifestId;
+					if (!manifestId) {
+						const m = await blinkApi.getLocalStorageClips(this.session, cam.network_id, syncId);
+						manifestId = m.manifestId;
+					}
+					await blinkApi.downloadLocalClip(
+						this.session,
+						cam.network_id,
+						syncId,
+						manifestId,
+						clip.id,
+						tmpFile(i),
+					);
+				}
+			} catch (e) {
+				this.log.warn(`History-Download fehlgeschlagen (${cam.name} Slot ${i}, clip ${clip.id}): ${e.message}`);
+				return; // Slot-Lauf abbrechen, alte Daten bleiben erhalten
+			}
+		}
+
+		// 4c) Temp → Slot umbenennen (atomar), überzählige Slots löschen.
+		for (let i = 0; i < wanted.length; i++) {
+			try {
+				fs.renameSync(tmpFile(i), slotFile(i));
+			} catch (e) {
+				this.log.warn(`History-Rename Slot ${i} fehlgeschlagen: ${e.message}`);
+			}
+		}
+		for (let i = wanted.length; i < HISTORY_SIZE; i++) {
+			try {
+				fs.unlinkSync(slotFile(i));
+			} catch {
+				// Slot-Datei existiert ggf. nicht; ignorieren.
+			}
+		}
+
+		// 5) States schreiben.
+		for (let i = 0; i < HISTORY_SIZE; i++) {
+			if (i < wanted.length) {
+				const clip = wanted[i];
+				await this.setStateAsync(`${base}.${i}.file`, slotFile(i), true);
+				await this.setStateAsync(`${base}.${i}.timestamp`, String(clip.created_at || ''), true);
+				await this.setStateAsync(`${base}.${i}.id`, String(clip.id || ''), true);
+				await this.setStateAsync(`${base}.${i}.source`, source, true);
+			} else {
+				await this.setStateAsync(`${base}.${i}.file`, '', true);
+				await this.setStateAsync(`${base}.${i}.timestamp`, '', true);
+				await this.setStateAsync(`${base}.${i}.id`, '', true);
+				await this.setStateAsync(`${base}.${i}.source`, '', true);
+			}
+		}
+		this.log.debug(`History aktualisiert für ${cam.name}: ${wanted.length} Slots (${source})`);
+	}
+
+	async updateDetectionStates(devId, summary) {
+		await this.setStateAsync(`cameras.${devId}.status.smart_detection`, !!summary?.smart_detection, true);
+		await this.setStateAsync(`cameras.${devId}.status.person_detected`, !!summary?.person_detected, true);
+		await this.setStateAsync(`cameras.${devId}.status.vehicle_detected`, !!summary?.vehicle_detected, true);
+		await this.setStateAsync(`cameras.${devId}.status.animal_detected`, !!summary?.animal_detected, true);
+		await this.setStateAsync(`cameras.${devId}.status.package_detected`, !!summary?.package_detected, true);
+		await this.setStateAsync(`cameras.${devId}.status.detection_type`, String(summary?.detection_type || ''), true);
+		await this.setStateAsync(
+			`cameras.${devId}.status.smart_detection_raw`,
+			String(summary?.smart_detection_raw || ''),
+			true,
+		);
+		await this.setStateAsync(`cameras.${devId}.status.motion_source`, String(summary?.motion_source || ''), true);
 	}
 
 	async updateVideoStates(devId, res) {
@@ -546,6 +1043,7 @@ class BlinkAdapter extends utils.Adapter {
 		await this.setStateAsync(`cameras.${devId}.video.size`, Number(res?.size || 0), true);
 		await this.setStateAsync(`cameras.${devId}.video.ready`, true, true);
 		await this.setStateAsync(`cameras.${devId}.video.lastError`, '', true);
+		await this.updateDetectionStates(devId, res);
 	}
 
 	async checkBatteryWarning(devId, cam) {
@@ -564,7 +1062,6 @@ class BlinkAdapter extends utils.Adapter {
 			nameLc.includes('mini') ||
 			serialLc.includes('mini');
 
-		// Minis / PanTilt grundsätzlich von Batteriewarnungen ausschließen
 		if (noBatteryDevice) {
 			await this.setStateAsync(`${base}.battery.low`, false, true);
 			await this.setStateAsync(`${base}.battery.warningSent`, false, true);
@@ -640,7 +1137,7 @@ class BlinkAdapter extends utils.Adapter {
 					fs.unlinkSync(full);
 				}
 			} catch {
-				// ignore
+				// Lösch-/Stat-Fehler ignorieren.
 			}
 		}
 	}
@@ -694,6 +1191,20 @@ class BlinkAdapter extends utils.Adapter {
 			}
 			if (this.liveTimer) {
 				clearInterval(this.liveTimer);
+			}
+			if (this.mjpegStatusTimer) {
+				clearInterval(this.mjpegStatusTimer);
+				this.mjpegStatusTimer = null;
+			}
+			if (this.mjpegServer) {
+				this.mjpegServer
+					.stop()
+					.catch(() => {})
+					.finally(() => {
+						this.mjpegServer = null;
+						cb();
+					});
+				return;
 			}
 			cb();
 		} catch {

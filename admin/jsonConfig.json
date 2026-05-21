@@ -262,6 +262,180 @@
           "xl": 4
         }
       }
+    },
+    "tab_streaming": {
+      "type": "panel",
+      "label": "Streaming",
+      "items": {
+        "stream_intro_header": {
+          "type": "header",
+          "text": "MJPEG-Live-Stream",
+          "size": 4,
+          "newLine": true,
+          "xs": 12,
+          "sm": 12,
+          "md": 12,
+          "lg": 12,
+          "xl": 12
+        },
+        "stream_intro": {
+          "type": "staticText",
+          "text": "Der Adapter stellt einen lokalen HTTP-Server bereit, über den Live-Bilder als MJPEG-Stream pro Kamera abrufbar sind. Wired-Kameras (Mini, Floodlight, Doorbell) werden permanent gepollt; Battery-Kameras nur, wenn ein Stream-Client verbunden ist oder live_request gedrückt wurde.",
+          "newLine": true,
+          "xs": 12,
+          "sm": 12,
+          "md": 12,
+          "lg": 12,
+          "xl": 12
+        },
+        "streamEnabled": {
+          "type": "checkbox",
+          "label": "MJPEG-Streaming aktivieren",
+          "default": false,
+          "newLine": true,
+          "sm": 12,
+          "xs": 12,
+          "lg": 4,
+          "xl": 4,
+          "md": 6
+        },
+        "streamPort": {
+          "type": "number",
+          "label": "HTTP-Port",
+          "min": 1024,
+          "max": 65535,
+          "default": 8089,
+          "hidden": "!data.streamEnabled",
+          "newLine": true,
+          "sm": 12,
+          "xs": 12,
+          "lg": 4,
+          "xl": 4,
+          "md": 6
+        },
+        "streamToken": {
+          "type": "text",
+          "label": "Stream-Token",
+          "help": "Schützt die Stream-URLs. Bei leerem Feld wird beim Adapter-Start automatisch ein Token generiert und hier eingetragen.",
+          "default": "",
+          "copyToClipboard": true,
+          "hidden": "!data.streamEnabled",
+          "sm": 12,
+          "xs": 12,
+          "lg": 8,
+          "xl": 8,
+          "md": 12
+        },
+        "streamPublicHost": {
+          "type": "text",
+          "label": "Öffentlicher Host (optional)",
+          "help": "IP oder Hostname für die Stream-URL (z.B. iobroker.local oder 192.168.1.50). Leer lassen für automatische Erkennung.",
+          "default": "",
+          "hidden": "!data.streamEnabled",
+          "newLine": true,
+          "sm": 12,
+          "xs": 12,
+          "lg": 4,
+          "xl": 4,
+          "md": 6
+        },
+        "stream_perf_header": {
+          "type": "header",
+          "text": "Polling-Verhalten",
+          "size": 4,
+          "newLine": true,
+          "hidden": "!data.streamEnabled",
+          "xs": 12,
+          "sm": 12,
+          "md": 12,
+          "lg": 12,
+          "xl": 12
+        },
+        "streamWiredIntervalSec": {
+          "type": "number",
+          "label": "Wired-Kamera Mindest-Intervall (Sek.)",
+          "help": "Mindestpause zwischen zwei Snapshots derselben netzbetriebenen Kamera. In der Praxis kann es durch Cloud-Latenz länger dauern.",
+          "min": 5,
+          "max": 600,
+          "default": 8,
+          "hidden": "!data.streamEnabled",
+          "newLine": true,
+          "sm": 12,
+          "xs": 12,
+          "lg": 4,
+          "xl": 4,
+          "md": 6
+        },
+        "streamBatteryIntervalSec": {
+          "type": "number",
+          "label": "Battery-Kamera Mindest-Intervall (Sek.)",
+          "min": 8,
+          "max": 600,
+          "default": 10,
+          "hidden": "!data.streamEnabled",
+          "sm": 12,
+          "xs": 12,
+          "lg": 4,
+          "xl": 4,
+          "md": 6
+        },
+        "streamBatteryIdleTimeoutSec": {
+          "type": "number",
+          "label": "Battery-Kamera Nachlauf nach Disconnect (Sek.)",
+          "help": "Solange läuft das Polling nach dem letzten Stream-Disconnect oder live_request weiter, bevor es eingestellt wird.",
+          "min": 15,
+          "max": 600,
+          "default": 60,
+          "hidden": "!data.streamEnabled",
+          "sm": 12,
+          "xs": 12,
+          "lg": 4,
+          "xl": 4,
+          "md": 6
+        },
+        "streamBatteryMinLevel": {
+          "type": "select",
+          "label": "Min. Akkustand für Battery-Polling",
+          "help": "Battery-Cams unter dieser Stufe werden nicht gepollt (Akku-Schutz).",
+          "default": 2,
+          "options": [
+            { "value": 0, "label": "0 - immer pollen (kein Schutz)" },
+            { "value": 1, "label": "1 - auch bei niedrigem Akku" },
+            { "value": 2, "label": "2 - nur bei OK-Stand (empfohlen)" },
+            { "value": 3, "label": "3 - nur bei vollem Akku" }
+          ],
+          "hidden": "!data.streamEnabled",
+          "newLine": true,
+          "sm": 12,
+          "xs": 12,
+          "lg": 4,
+          "xl": 4,
+          "md": 6
+        },
+        "stream_hint_header": {
+          "type": "header",
+          "text": "Verwendung",
+          "size": 4,
+          "newLine": true,
+          "hidden": "!data.streamEnabled",
+          "xs": 12,
+          "sm": 12,
+          "md": 12,
+          "lg": 12,
+          "xl": 12
+        },
+        "stream_hint_text": {
+          "type": "staticText",
+          "text": "Pro Kamera findest du nach dem Speichern unter cameras.<id>.live.stream_url die fertige URL. Diese kannst du in VIS in einem HTML-Widget per <img src=\"...\"> einbinden.",
+          "hidden": "!data.streamEnabled",
+          "newLine": true,
+          "xs": 12,
+          "sm": 12,
+          "md": 12,
+          "lg": 12,
+          "xl": 12
+        }
+      }
     }
   }
 }
