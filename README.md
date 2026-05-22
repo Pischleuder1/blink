@@ -10,11 +10,11 @@
 
 ## blink adapter for ioBroker
 
-ioBroker adapter for Blink cameras - Development state !!
+ioBroker adapter for Blink cameras.
 
 ## Getting started
 
-Install via the ioBroker Admin interface : https://github.com/Pischleuder1/ioBroker.blink/tree/0.0.8-beta
+Install via the ioBroker Admin interface
 -----------------------------------------------------------------------------------------
 Fill out your credentials:
 <img width="2356" height="880" alt="image" src="https://github.com/user-attachments/assets/cdc22784-309f-4514-bfe4-abb93625958c" />
