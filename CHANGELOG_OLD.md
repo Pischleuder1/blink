@@ -3,3 +3,5 @@
 Older changelog entries that have been moved out of `README.md` will appear below.
 This file is managed by [@alcalzone/release-script](https://github.com/AlCalzone/release-script)
 when newer entries are added to the README.
+## 0.0.1 (2026-04-23)
+* initial release

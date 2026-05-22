@@ -1492,8 +1492,7 @@ For the **history gallery** query slots 0–9 individually:
 All product and company names or logos are trademarks™ or registered® trademarks of their respective holders. Use of them does not imply any affiliation with or endorsement by them or any associated subsidiaries! This personal project is maintained in spare time and has no business goal. Blink is a trademark of Amazon Technologies, Inc..
 
 ## Changelog
-
-### **WORK IN PROGRESS**
+### 0.0.7 (2026-05-22)
 * Adapter requires node.js >= 22 now
 * added MJPEG streaming
 * Supports Smart Detection states for classified motion events
@@ -1502,22 +1501,18 @@ All product and company names or logos are trademarks™ or registered® tradema
 ### 0.0.6 (2026-04-28)
 * Blink PanTilt and Blink Mini - temperature_text and battery_text set to "not available" because of no built in temperature and battery indicator
 * blink.0.xxx.xxx.status.wifi_strength fixed
- 
+
 ### 0.0.5 (2026-04-27)
 * new admin menu
 * checkbox to turn log on/off
 
-
 ### 0.0.4 (2026-04-26)
 * integrated Amazon Video Doorbell
 * Log is now deleted after adapter restart
-  
+
 ### 0.0.2 (2026-04-24)
 * update language
 * Updated Blink API integration and package metadata.
-  
-### 0.0.1 (2026-04-23)
-* initial release
 
 ## License
 

@@ -1,176 +1,189 @@
 {
-	"common": {
-		"name": "blink",
-		"version": "0.0.6",
-		"news": {
-                        "0.0.6": {
-                               "en": "Blink PanTilt and Blink Mini - temperature_text and battery_text set to \"not available\" because of no built in temperature and battery indicator\nblink.0.xxx.xxx.status.wifi_strength fixed\n \n",
-                               "de": "Blink PanTilt und Blink Mini - temperatur text und akku text gesetzt auf \"nicht verfügbar\" weil keine eingebaute Temperatur- und Batterieanzeige\nblink.0.xxx.xxx.status.wifi strength fix\n \n",
-                               "ru": "Blink PanTilt и Blink Mini - temperature text и battery text настроены на «недоступность» из-за отсутствия встроенного индикатора температуры и батареи\nblink.0.xxx.xxx.status.wifi strengthed\n \n",
-                               "pt": "Blink PanTilt e Blink Mini - temperatura texto e bateria texto definido para \"não disponível\" por não ter incorporado em indicador de temperatura e bateria\nblink.0.xxxxxx.status.wifi  strength fixed\n \n",
-                               "nl": "Knipper PanTilt en Blink Mini - temperatuur tekst en batterij tekst ingesteld op \"niet beschikbaar\" vanwege geen ingebouwde temperatuur en batterij indicator\nblink.0.xxx.xxx.status.wifi sterkfixed\n \n",
-                               "fr": "Blink PanTilt et Blink Mini - temperature text et batterie text réglé à \"non disponible\" en raison de l'absence d'indicateur de température et de batterie\nclignotant.0.xxx.xxx.status.wifi resistance corrigé\n \n",
-                               "it": "Blink PanTilt e Blink Mini - temperatura text e batteria text impostato per \"non disponibile\" a causa di nessun built in temperatura e indicatore della batteria\nblink.0.xxx.xxx.status.wifi strength fisso\n \n",
-                               "es": "Blink PanTilt y Blink Mini - temperature text y Battery text fijados a \"no disponible\" debido a que no se construye en el indicador de temperatura y batería\nblink.0.xxx.xxx.status.wifi strength fijo\n \n",
-                               "pl": "Blink PanTilt i Blink Mini - temperatura _ tekst i bateria _ tekst ustawić na \"niedostępny\" ze względu na brak wbudowany wskaźnik temperatury i baterii\nblink.0.xxx.xxx.status.wifi _ stand\n \n",
-                               "uk": "Blink PanTilt і Blink Mini - температура текст і акумулятор текстовий набір до \"не доступний\" через не вбудований індикатор температури і батареї\njavascript licenses api веб-сайт go1.13.8\n \n",
-                                "zh-cn": "Blink Pantilt 和 Blink Mini - 温度  text 和电池  text 设置为\"不可用\",因为没有在温度和电池指标中构建\n闪烁0.xxxxxx.status.wifi strength 已固定\n \n"
-                               },
-                        "0.0.5": {
-                               "en": "new admin menu, checkbox to turn log on / off\n",
- 			       "de": "neues Admin-Menü, Checkbox, um Log ein- / auszuschalten\n",
-                               "ru": "новое меню администратора, флажок для включения / выключения\n",
-                               "pt": "novo menu de administração, caixa de seleção para ligar / desligar\n",
-                               "nl": "nieuw adminmenu, selectievakje om log in / uit te zetten\n",
-                               "fr": "nouveau menu admin, case à cocher pour activer / désactiver la connexion\n",
-                               "it": "nuovo menu admin, casella di controllo per attivare / disattivare\n",
-                               "es": "nuevo menú de administración, casilla de verificación para activar / apagar\n",
-                               "pl": "nowe menu administratora, pole wyboru, aby włączyć / wyłączyć dziennik\n",
-                               "uk": "нове меню адміністратора, прапорець для включення / вимкнення\n",
-                               "zh-cn": "新建管理员菜单, 打开/ 关闭日志的复选框\n"
-                                },
-                       "0.0.4": {
-                               "en": "integrated Amazon Video Doorbell",
-                               "de": "amazon Video Doorbell integriert",
-                               "ru": "amazon Video Doorbell",
-                               "pt": "sino de vídeo integrado Amazon",
-                               "nl": "geïntegreerde Amazon Video Doorbell",
-                               "fr": "sonnette vidéo Amazon intégrée",
-                               "it": "campanello video Amazon integrato",
-                               "es": "integrado Amazon Video Doorbell",
-                               "pl": "zintegrowany Amazon Video Doorbell",
-                               "uk": "інтегрований Amazon Video Doorbell",
-                               "zh-cn": "集成的亚马逊视频门"
-                                 },
-                       "0.0.2": {
-                               "en": "Updated Blink API integration and package metadata.",
-                               "de": "Aktualisierte Blink API Integration und Paket Metadaten.",
-                               "ru": "Обновленная интеграция Blink API и метаданные пакетов.",
-                               "pt": "Atualização da integração da API Blink e metadados do pacote.",
-                               "nl": "Bijgewerkt Blink API integratie en pakketmetadata.",
-                               "fr": "Mise à jour de l'intégration de l'API Blink et des métadonnées du paquet.",
-                               "it": "Aggiornato l'integrazione API Blink e i metadati dei pacchetti.",
-                               "es": "Actualización de la integración de Blink API y metadatos de paquetes.",
-                               "pl": "Zaktualizowana integracja Blink API i metadane pakietów.",
-                               "uk": "Оновлено інтеграцію Blink API та метаданих пакетів.",
-                               "zh-cn": "更新了Blink API集成和包元数据."
-                                 },
-			"0.0.1": {
-				"en": "initial release",
-				"de": "Erstveröffentlichung",
-				"ru": "Начальная версия",
-				"pt": "lançamento inicial",
-				"nl": "Eerste uitgave",
-				"fr": "Première version",
-				"it": "Versione iniziale",
-				"es": "Versión inicial",
-				"pl": "Pierwsze wydanie",
-				"uk": "Початкова версія",
-				"zh-cn": "首次出版"
-			}
-		},
-		"titleLang": {
-			"en": "blink system",
-			"de": "Blinksystem",
-			"ru": "система мигания",
-			"pt": "sistema de piscar",
-			"nl": "knippersysteem",
-			"fr": "système de clignotement",
-			"it": "sistema di lampeggiamento",
-			"es": "sistema de parpadeo",
-			"pl": "system migania",
-			"uk": "система миготіння",
-			"zh-cn": "眨眼系统"
-		},
-		"desc": {
-			"en": "adapter for amazon blink system and ioBroker",
-			"de": "Adapter für Amazon Blink System und ioBroker",
-			"ru": "адаптер für die Amazon Blink-System und ioBroker",
-			"pt": "adaptador para sistema Amazon Blink e ioBroker",
-			"nl": "adapter voor Amazon blink-systeem und ioBroker",
-			"fr": "adaptateur pour système clignotant amazon et ioBroker",
-			"it": "adattatore per sistema Amazon Blink e ioBroker",
-			"es": "Adaptador para sistema Amazon Blink e ioBroker.",
-			"pl": "adapter do systemu Amazon Blink i ioBroker",
-			"uk": "адаптер для системи amazon blink і ioBroker",
-			"zh-cn": "适用于亚马逊 Blink 系统和 ioBroker 的适配器"
-		},
-		"authors": [
-			"Pischleuder1 <pischleuder@gmx.de>"
-		],
-		"keywords": [
-			"security",
-			"blink",
-			"amazon"
-		],
-		"licenseInformation": {
-			"type": "free",
-			"license": "MIT"
-		},
-		"platform": "Javascript/Node.js",
-		"icon": "blink.png",
-		"enabled": true,
-		"extIcon": "https://raw.githubusercontent.com/Pischleuder1/ioBroker.blink/main/admin/blink.png",
-		"readme": "https://github.com/Pischleuder1/ioBroker.blink/blob/main/README.md",
-		"loglevel": "info",
-		"tier": 3,
-		"mode": "daemon",
-		"type": "alarm",
-		"compact": true,
-		"connectionType": "cloud",
-		"dataSource": "poll",
-		"adminUI": {
-			"config": "json"
-		},
-		"dependencies": [
-			{
-				"js-controller": ">=6.0.11"
-			}
-		],
-		"globalDependencies": [
-			{
-				"admin": ">=7.6.20"
-			}
-		]
-	},
-	"encryptedNative": [
-		"password",
-		"pin"
-	],
-	"protectedNative": [
-		"password",
-		"pin"
-	],
-	"native": {
-		"email": "",
-		"password": "",
-		"pin": "",
-		"pollIntervalSec": 60,
-		"snapshotDir": "/opt/iobroker/iobroker-data/blink",
-                "debugLogEnabled": false,
-		"liveSnapshotEnabled": true,
-		"liveSnapshotIntervalSec": 30,
-		"storeBase64": true,
-		"cleanupOldSnapshots": true,
-		"maxSnapshotAgeHours": 24,
-		"batteryWarningEnabled": false,
-		"batteryWarningThresholdVolt": 1.1,
-		"batteryWarningPushoverInstance": "pushover.0",
-		"batteryWarningCooldownHours": 24
-	},
-	"objects": [],
-	"instanceObjects": [
-		{
-			"_id": "info.connection",
-			"type": "state",
-			"common": {
-				"name": "Connected",
-				"type": "boolean",
-				"role": "indicator.connected",
-				"read": true,
-				"write": false
-			},
-			"native": {}
-		}
-	]
+  "common": {
+    "name": "blink",
+    "version": "0.0.7",
+    "news": {
+      "0.0.7": {
+        "en": "Adapter requires node.js >= 22 now\nadded MJPEG streaming\nSupports Smart Detection states for classified motion events\nSupports cloud stored videos and local stored videos on sc-card",
+        "de": "Adapter benötigt node.js >= 22 jetzt\nmJPEG Streaming hinzugefügt\nUnterstützt Smart Detection Zustände für geheime Bewegungsereignisse\nUnterstützt Cloud gespeicherte Videos und lokale gespeicherte Videos auf sc-card",
+        "ru": "Адаптер требует node.js >= 22 сейчас\nдобавить MJPEG Streaming\nПоддержка состояний Smart Detection для классифицированных событий движения\nПоддержка облачных сохраненных видео и локальных сохраненных видео на sc-карте",
+        "pt": "Adaptador requer nod.js >= 22 agora\nadicionou streaming MJPEG\nSuporta estados de detecção inteligente para eventos de movimento classificados\nSuporta vídeos armazenados na nuvem e vídeos armazenados no sc-card",
+        "nl": "Voor de adapter zijn node.js < 22 nu nodig\nmJPEG-streaming toegevoegd\nOndersteunt Smart Detectie toestanden voor geclassificeerde motie evenementen\nOndersteunt cloud opgeslagen video's en lokale opgeslagen video's op sc-card",
+        "fr": "Adaptateur nécessite node.js >= 22 maintenant\najouté MJPEG streaming\nPrend en charge les états de détection intelligente pour les événements de mouvement classifiés\nPrise en charge des vidéos stockées dans le cloud et des vidéos stockées localement sur sc-card",
+        "it": "Adattatore richiede node.js >= 22 ora\nmJPEG streaming\nSupporta gli stati di rilevamento intelligente per eventi di movimento classificati\nSupporta video memorizzati cloud e video memorizzati localmente su sc-card",
+        "es": "Adaptador requiere node.js ю= 22 ahora\nmJPEG streaming\nSoporta estados de detección inteligente para eventos de movimiento clasificados\nSoporta videos almacenados en la nube y videos almacenados locales en sc-card",
+        "pl": "Adapter wymaga node.js > = 22\ndodany strumieniowy MJPEG\nObsługuje stany inteligentnego wykrywania dla tajnych zdarzeń ruchu\nObsługuje pliki wideo przechowywane w chmurze i lokalne pliki wideo przechowywane na karcie sc-",
+        "uk": "Адаптер вимагає node.js >= 22 тепер\nдодано MJPEG потокове передавання\nПідтримка смарт-детекційних станів для тематичних заходів руху\nПідтримка хмарних збережених відео та місцевих збережених відео на sc-card",
+        "zh-cn": "适配器需要节点.js 现在22\n添加 MJPEG 流线\n支持对机密运动事件的智能检测状态\n支持云存储视频和存储在sc-card上的本地视频"
+      },
+      "0.0.6": {
+        "en": "Blink PanTilt and Blink Mini - temperature_text and battery_text set to \"not available\" because of no built in temperature and battery indicator\nblink.0.xxx.xxx.status.wifi_strength fixed\n \n",
+        "de": "Blink PanTilt und Blink Mini - temperatur text und akku text gesetzt auf \"nicht verfügbar\" weil keine eingebaute Temperatur- und Batterieanzeige\nblink.0.xxx.xxx.status.wifi strength fix\n \n",
+        "ru": "Blink PanTilt и Blink Mini - temperature text и battery text настроены на «недоступность» из-за отсутствия встроенного индикатора температуры и батареи\nblink.0.xxx.xxx.status.wifi strengthed\n \n",
+        "pt": "Blink PanTilt e Blink Mini - temperatura texto e bateria texto definido para \"não disponível\" por não ter incorporado em indicador de temperatura e bateria\nblink.0.xxxxxx.status.wifi  strength fixed\n \n",
+        "nl": "Knipper PanTilt en Blink Mini - temperatuur tekst en batterij tekst ingesteld op \"niet beschikbaar\" vanwege geen ingebouwde temperatuur en batterij indicator\nblink.0.xxx.xxx.status.wifi sterkfixed\n \n",
+        "fr": "Blink PanTilt et Blink Mini - temperature text et batterie text réglé à \"non disponible\" en raison de l'absence d'indicateur de température et de batterie\nclignotant.0.xxx.xxx.status.wifi resistance corrigé\n \n",
+        "it": "Blink PanTilt e Blink Mini - temperatura text e batteria text impostato per \"non disponibile\" a causa di nessun built in temperatura e indicatore della batteria\nblink.0.xxx.xxx.status.wifi strength fisso\n \n",
+        "es": "Blink PanTilt y Blink Mini - temperature text y Battery text fijados a \"no disponible\" debido a que no se construye en el indicador de temperatura y batería\nblink.0.xxx.xxx.status.wifi strength fijo\n \n",
+        "pl": "Blink PanTilt i Blink Mini - temperatura _ tekst i bateria _ tekst ustawić na \"niedostępny\" ze względu na brak wbudowany wskaźnik temperatury i baterii\nblink.0.xxx.xxx.status.wifi _ stand\n \n",
+        "uk": "Blink PanTilt і Blink Mini - температура текст і акумулятор текстовий набір до \"не доступний\" через не вбудований індикатор температури і батареї\njavascript licenses api веб-сайт go1.13.8\n \n",
+        "zh-cn": "Blink Pantilt 和 Blink Mini - 温度  text 和电池  text 设置为\"不可用\",因为没有在温度和电池指标中构建\n闪烁0.xxxxxx.status.wifi strength 已固定\n \n"
+      },
+      "0.0.5": {
+        "en": "new admin menu, checkbox to turn log on / off\n",
+        "de": "neues Admin-Menü, Checkbox, um Log ein- / auszuschalten\n",
+        "ru": "новое меню администратора, флажок для включения / выключения\n",
+        "pt": "novo menu de administração, caixa de seleção para ligar / desligar\n",
+        "nl": "nieuw adminmenu, selectievakje om log in / uit te zetten\n",
+        "fr": "nouveau menu admin, case à cocher pour activer / désactiver la connexion\n",
+        "it": "nuovo menu admin, casella di controllo per attivare / disattivare\n",
+        "es": "nuevo menú de administración, casilla de verificación para activar / apagar\n",
+        "pl": "nowe menu administratora, pole wyboru, aby włączyć / wyłączyć dziennik\n",
+        "uk": "нове меню адміністратора, прапорець для включення / вимкнення\n",
+        "zh-cn": "新建管理员菜单, 打开/ 关闭日志的复选框\n"
+      },
+      "0.0.4": {
+        "en": "integrated Amazon Video Doorbell",
+        "de": "amazon Video Doorbell integriert",
+        "ru": "amazon Video Doorbell",
+        "pt": "sino de vídeo integrado Amazon",
+        "nl": "geïntegreerde Amazon Video Doorbell",
+        "fr": "sonnette vidéo Amazon intégrée",
+        "it": "campanello video Amazon integrato",
+        "es": "integrado Amazon Video Doorbell",
+        "pl": "zintegrowany Amazon Video Doorbell",
+        "uk": "інтегрований Amazon Video Doorbell",
+        "zh-cn": "集成的亚马逊视频门"
+      },
+      "0.0.2": {
+        "en": "Updated Blink API integration and package metadata.",
+        "de": "Aktualisierte Blink API Integration und Paket Metadaten.",
+        "ru": "Обновленная интеграция Blink API и метаданные пакетов.",
+        "pt": "Atualização da integração da API Blink e metadados do pacote.",
+        "nl": "Bijgewerkt Blink API integratie en pakketmetadata.",
+        "fr": "Mise à jour de l'intégration de l'API Blink et des métadonnées du paquet.",
+        "it": "Aggiornato l'integrazione API Blink e i metadati dei pacchetti.",
+        "es": "Actualización de la integración de Blink API y metadatos de paquetes.",
+        "pl": "Zaktualizowana integracja Blink API i metadane pakietów.",
+        "uk": "Оновлено інтеграцію Blink API та метаданих пакетів.",
+        "zh-cn": "更新了Blink API集成和包元数据."
+      },
+      "0.0.1": {
+        "en": "initial release",
+        "de": "Erstveröffentlichung",
+        "ru": "Начальная версия",
+        "pt": "lançamento inicial",
+        "nl": "Eerste uitgave",
+        "fr": "Première version",
+        "it": "Versione iniziale",
+        "es": "Versión inicial",
+        "pl": "Pierwsze wydanie",
+        "uk": "Початкова версія",
+        "zh-cn": "首次出版"
+      }
+    },
+    "titleLang": {
+      "en": "blink system",
+      "de": "Blinksystem",
+      "ru": "система мигания",
+      "pt": "sistema de piscar",
+      "nl": "knippersysteem",
+      "fr": "système de clignotement",
+      "it": "sistema di lampeggiamento",
+      "es": "sistema de parpadeo",
+      "pl": "system migania",
+      "uk": "система миготіння",
+      "zh-cn": "眨眼系统"
+    },
+    "desc": {
+      "en": "adapter for amazon blink system and ioBroker",
+      "de": "Adapter für Amazon Blink System und ioBroker",
+      "ru": "адаптер für die Amazon Blink-System und ioBroker",
+      "pt": "adaptador para sistema Amazon Blink e ioBroker",
+      "nl": "adapter voor Amazon blink-systeem und ioBroker",
+      "fr": "adaptateur pour système clignotant amazon et ioBroker",
+      "it": "adattatore per sistema Amazon Blink e ioBroker",
+      "es": "Adaptador para sistema Amazon Blink e ioBroker.",
+      "pl": "adapter do systemu Amazon Blink i ioBroker",
+      "uk": "адаптер для системи amazon blink і ioBroker",
+      "zh-cn": "适用于亚马逊 Blink 系统和 ioBroker 的适配器"
+    },
+    "authors": [
+      "Pischleuder1 <pischleuder@gmx.de>"
+    ],
+    "keywords": [
+      "security",
+      "blink",
+      "amazon"
+    ],
+    "licenseInformation": {
+      "type": "free",
+      "license": "MIT"
+    },
+    "platform": "Javascript/Node.js",
+    "icon": "blink.png",
+    "enabled": true,
+    "extIcon": "https://raw.githubusercontent.com/Pischleuder1/ioBroker.blink/main/admin/blink.png",
+    "readme": "https://github.com/Pischleuder1/ioBroker.blink/blob/main/README.md",
+    "loglevel": "info",
+    "tier": 3,
+    "mode": "daemon",
+    "type": "alarm",
+    "compact": true,
+    "connectionType": "cloud",
+    "dataSource": "poll",
+    "adminUI": {
+      "config": "json"
+    },
+    "dependencies": [
+      {
+        "js-controller": ">=6.0.11"
+      }
+    ],
+    "globalDependencies": [
+      {
+        "admin": ">=7.6.20"
+      }
+    ]
+  },
+  "encryptedNative": [
+    "password",
+    "pin"
+  ],
+  "protectedNative": [
+    "password",
+    "pin"
+  ],
+  "native": {
+    "email": "",
+    "password": "",
+    "pin": "",
+    "pollIntervalSec": 60,
+    "snapshotDir": "/opt/iobroker/iobroker-data/blink",
+    "debugLogEnabled": false,
+    "liveSnapshotEnabled": true,
+    "liveSnapshotIntervalSec": 30,
+    "storeBase64": true,
+    "cleanupOldSnapshots": true,
+    "maxSnapshotAgeHours": 24,
+    "batteryWarningEnabled": false,
+    "batteryWarningThresholdVolt": 1.1,
+    "batteryWarningPushoverInstance": "pushover.0",
+    "batteryWarningCooldownHours": 24
+  },
+  "objects": [],
+  "instanceObjects": [
+    {
+      "_id": "info.connection",
+      "type": "state",
+      "common": {
+        "name": "Connected",
+        "type": "boolean",
+        "role": "indicator.connected",
+        "read": true,
+        "write": false
+      },
+      "native": {}
+    }
+  ]
 }
