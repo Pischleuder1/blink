@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "blink",
-    "version": "0.0.8",
+    "version": "0.0.9",
     "news": {
+      "0.0.9": {
+        "en": "Use npm trusted publishing",
+        "de": "Verwenden Sie npm Trusted Publishing",
+        "ru": "Использование npm Trusted Publishing",
+        "pt": "Usar a publicação confiável do npm",
+        "nl": "Npm vertrouwde publicatie gebruiken",
+        "fr": "Utiliser npm publication de confiance",
+        "it": "Utilizzare npm pubblicazione fidata",
+        "es": "Utilizar la publicación de confianza npm",
+        "pl": "Użyj zaufanego publikowania npm",
+        "uk": "Використовуйте npm перевірене видання",
+        "zh-cn": "使用 npm 信任的发布"
+      },
       "0.0.8": {
         "en": "Fix deploy workflow",
         "de": "Workflow für die Bereitstellung",
@@ -80,19 +93,6 @@
         "pl": "Zaktualizowana integracja Blink API i metadane pakietów.",
         "uk": "Оновлено інтеграцію Blink API та метаданих пакетів.",
         "zh-cn": "更新了Blink API集成和包元数据."
-      },
-      "0.0.1": {
-        "en": "initial release",
-        "de": "Erstveröffentlichung",
-        "ru": "Начальная версия",
-        "pt": "lançamento inicial",
-        "nl": "Eerste uitgave",
-        "fr": "Première version",
-        "it": "Versione iniziale",
-        "es": "Versión inicial",
-        "pl": "Pierwsze wydanie",
-        "uk": "Початкова версія",
-        "zh-cn": "首次出版"
       }
     },
     "titleLang": {

@@ -1492,8 +1492,9 @@ For the **history gallery** query slots 0–9 individually:
 All product and company names or logos are trademarks™ or registered® trademarks of their respective holders. Use of them does not imply any affiliation with or endorsement by them or any associated subsidiaries! This personal project is maintained in spare time and has no business goal. Blink is a trademark of Amazon Technologies, Inc..
 
 ## Changelog
-### **WORK IN PROGRESS**
+### 0.0.9 (2026-05-23)
 * (Pischleuder1) Use npm trusted publishing
+
 ### 0.0.8 (2026-05-23)
 * (Pischleuder1) Fix deploy workflow
 
@@ -1510,10 +1511,6 @@ All product and company names or logos are trademarks™ or registered® tradema
 ### 0.0.5 (2026-04-27)
 * new admin menu
 * checkbox to turn log on/off
-
-### 0.0.4 (2026-04-26)
-* integrated Amazon Video Doorbell
-* Log is now deleted after adapter restart
 
 ## License
 
