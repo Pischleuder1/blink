@@ -16,32 +16,6 @@
         "uk": "Виправлення перевірених випадків видавця",
         "zh-cn": "修复信任的出版商大小写不匹配"
       },
-      "0.0.9": {
-        "en": "Use npm trusted publishing",
-        "de": "Verwenden Sie npm Trusted Publishing",
-        "ru": "Использование npm Trusted Publishing",
-        "pt": "Usar a publicação confiável do npm",
-        "nl": "Npm vertrouwde publicatie gebruiken",
-        "fr": "Utiliser npm publication de confiance",
-        "it": "Utilizzare npm pubblicazione fidata",
-        "es": "Utilizar la publicación de confianza npm",
-        "pl": "Użyj zaufanego publikowania npm",
-        "uk": "Використовуйте npm перевірене видання",
-        "zh-cn": "使用 npm 信任的发布"
-      },
-      "0.0.8": {
-        "en": "Fix deploy workflow",
-        "de": "Workflow für die Bereitstellung",
-        "ru": "Исправьте рабочий процесс развертывания",
-        "pt": "Corrigir fluxo de trabalho de implantação",
-        "nl": "Fix implementatie workflow",
-        "fr": "Correction du flux de travail de déploiement",
-        "it": "Fissare il flusso di lavoro di distribuzione",
-        "es": "Corriente de trabajo de despliegue fijo",
-        "pl": "Napraw przepływ pracy",
-        "uk": "Виправлення розгортання робочого процесу",
-        "zh-cn": "调整部署工作流程"
-      },
       "0.0.7": {
         "en": "Adapter requires node.js >= 22 now\nadded MJPEG streaming\nSupports Smart Detection states for classified motion events\nSupports cloud stored videos and local stored videos on sc-card",
         "de": "Adapter benötigt node.js >= 22 jetzt\nmJPEG Streaming hinzugefügt\nUnterstützt Smart Detection Zustände für geheime Bewegungsereignisse\nUnterstützt Cloud gespeicherte Videos und lokale gespeicherte Videos auf sc-card",
