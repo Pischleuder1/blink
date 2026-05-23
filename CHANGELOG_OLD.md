@@ -3,6 +3,10 @@
 Older changelog entries that have been moved out of `README.md` will appear below.
 This file is managed by [@alcalzone/release-script](https://github.com/AlCalzone/release-script)
 when newer entries are added to the README.
+## 0.0.5 (2026-04-27)
+* new admin menu
+* checkbox to turn log on/off
+
 ## 0.0.4 (2026-04-26)
 * integrated Amazon Video Doorbell
 * Log is now deleted after adapter restart

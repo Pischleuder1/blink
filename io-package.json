@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "blink",
-    "version": "0.0.9",
+    "version": "0.0.10",
     "news": {
+      "0.0.10": {
+        "en": "Fix trusted publisher case mismatch",
+        "de": "Fehler bei vertrauenswürdigen Verlegern behoben",
+        "ru": "Исправить доверенное дело издателя несоответствие",
+        "pt": "Corrigir o erro do caso do editor confiável",
+        "nl": "Fix trusted publisher case mismatch",
+        "fr": "Correction erreur de cas d'éditeur de confiance",
+        "it": "Fissare il caso dell'editore fidato sbagliato",
+        "es": "Corrección de caso editor de confianza",
+        "pl": "Napraw błąd w przypadku zaufanego wydawcy",
+        "uk": "Виправлення перевірених випадків видавця",
+        "zh-cn": "修复信任的出版商大小写不匹配"
+      },
       "0.0.9": {
         "en": "Use npm trusted publishing",
         "de": "Verwenden Sie npm Trusted Publishing",
@@ -80,19 +93,6 @@
         "pl": "zintegrowany Amazon Video Doorbell",
         "uk": "інтегрований Amazon Video Doorbell",
         "zh-cn": "集成的亚马逊视频门"
-      },
-      "0.0.2": {
-        "en": "Updated Blink API integration and package metadata.",
-        "de": "Aktualisierte Blink API Integration und Paket Metadaten.",
-        "ru": "Обновленная интеграция Blink API и метаданные пакетов.",
-        "pt": "Atualização da integração da API Blink e metadados do pacote.",
-        "nl": "Bijgewerkt Blink API integratie en pakketmetadata.",
-        "fr": "Mise à jour de l'intégration de l'API Blink et des métadonnées du paquet.",
-        "it": "Aggiornato l'integrazione API Blink e i metadati dei pacchetti.",
-        "es": "Actualización de la integración de Blink API y metadatos de paquetes.",
-        "pl": "Zaktualizowana integracja Blink API i metadane pakietów.",
-        "uk": "Оновлено інтеграцію Blink API та метаданих пакетів.",
-        "zh-cn": "更新了Blink API集成和包元数据."
       }
     },
     "titleLang": {
