@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "blink",
-    "version": "0.0.7",
+    "version": "0.0.8",
     "news": {
+      "0.0.8": {
+        "en": "Fix deploy workflow",
+        "de": "Workflow für die Bereitstellung",
+        "ru": "Исправьте рабочий процесс развертывания",
+        "pt": "Corrigir fluxo de trabalho de implantação",
+        "nl": "Fix implementatie workflow",
+        "fr": "Correction du flux de travail de déploiement",
+        "it": "Fissare il flusso di lavoro di distribuzione",
+        "es": "Corriente de trabajo de despliegue fijo",
+        "pl": "Napraw przepływ pracy",
+        "uk": "Виправлення розгортання робочого процесу",
+        "zh-cn": "调整部署工作流程"
+      },
       "0.0.7": {
         "en": "Adapter requires node.js >= 22 now\nadded MJPEG streaming\nSupports Smart Detection states for classified motion events\nSupports cloud stored videos and local stored videos on sc-card",
         "de": "Adapter benötigt node.js >= 22 jetzt\nmJPEG Streaming hinzugefügt\nUnterstützt Smart Detection Zustände für geheime Bewegungsereignisse\nUnterstützt Cloud gespeicherte Videos und lokale gespeicherte Videos auf sc-card",
