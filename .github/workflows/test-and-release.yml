@@ -70,8 +70,3 @@ jobs:
         with:
           node-version: '22.x'
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          # Sentry ist aktiviert, benötigt aber den SENTRY_AUTH_TOKEN in den Secrets
-          sentry: true
-          sentry-token: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          sentry-project: "iobroker-blink"
-          sentry-version-prefix: "iobroker.blink"
