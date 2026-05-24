@@ -87,8 +87,8 @@ const LIVEVIEW_PASSWORD     = 'YOUR-PASSWORD';
 const LIVEVIEW_PIN          = 'PIN';
 
 // Fallbacks, weil dein ioBroker-Blink-Objektbaum account/network nicht pro Kamera enthält.
-const DEFAULT_ACCOUNT_ID    = '133934';
-const DEFAULT_NETWORK_ID    = '174553';
+const DEFAULT_ACCOUNT_ID    = 'YOUR-ACCOUNT-ID';
+const DEFAULT_NETWORK_ID    = 'YOUR DEFAULT NETWORK ID';
 
 // Typen/Seriennummern überschreiben/ergänzen. Serial wird sonst aus blink.0.cameras.<id>.info.serial gelesen.
 const LIVEVIEW_CAMERA_OVERRIDES = {
