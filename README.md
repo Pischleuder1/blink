@@ -35,10 +35,10 @@ Fill out your credentials:
 - Downloads the latest available cloud video
 - Allows enabling or disabling motion detection
 - Supports battery warning states and notifications
-- Supports optional MJPEG streaming (stream is out of a range of pictures, no live stream)
 - Supports Smart Detection states for classified motion events (works only on paid cloud services)
 - Supports cloud stored videos and local stored videos on sd-card (SyncModule 2 and XR) via local server on port 8085 - JavaScript needed, see below !
 - The script requires ffmpeg installed and a lot resources and is only partially suitable for Raspberry Pis (min. 4GB — more is better)
+- initial release for live view with javascript
 
 <details>
 <summary>press here to see the Script</summary>
