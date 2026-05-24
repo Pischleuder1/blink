@@ -82,9 +82,9 @@ const HLS_DIR               = '/tmp/blink_hls';
 const LIVEVIEW_RUNTIME_SEC  = 300;
 
 // Zugangsdaten hier eintragen. PIN nur setzen, wenn Blink gerade einen Code verlangt.
-const LIVEVIEW_EMAIL        = 'joerg.vogtschmidt@gmx.de';
-const LIVEVIEW_PASSWORD     = 'Jvblink2026#';
-const LIVEVIEW_PIN          = '772217';
+const LIVEVIEW_EMAIL        = 'YOUR-EMAIL';
+const LIVEVIEW_PASSWORD     = 'YOUR-PASSWORD';
+const LIVEVIEW_PIN          = 'PIN';
 
 // Fallbacks, weil dein ioBroker-Blink-Objektbaum account/network nicht pro Kamera enthält.
 const DEFAULT_ACCOUNT_ID    = '133934';
