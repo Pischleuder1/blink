@@ -29,6 +29,9 @@ class BlinkAdapter extends utils.Adapter {
 		this.camerasById = new Map();
 		this.syncById = new Map();
 		this.session = null;
+		this.loginFailureCount = 0;
+		this.loginBlocked = false;
+		this.maxLoginFailures = 3;
 		this.mjpegServer = null;
 		this.mjpegStatusTimer = null;
 
@@ -37,6 +40,68 @@ class BlinkAdapter extends utils.Adapter {
 		this.liveStopTimers = new Map();
 		this.liveProcesses = new Map();
 		this.hlsServer = null;
+	}
+
+
+	isCredentialError(err) {
+		const msg = String(err?.message || err || '').toLowerCase();
+
+		return (
+			msg.includes('invalid_user_credentials') ||
+			msg.includes('invalid user credentials') ||
+			msg.includes('unauthorized') ||
+			msg.includes('http 401') ||
+			msg.includes('401')
+		);
+	}
+
+	stopLoginRelatedTimers() {
+		if (this.pollTimer) {
+			clearInterval(this.pollTimer);
+			this.pollTimer = null;
+		}
+		if (this.liveTimer) {
+			clearInterval(this.liveTimer);
+			this.liveTimer = null;
+		}
+	}
+
+	async getBlinkSessionSafe(email, password, pin) {
+		if (this.loginBlocked) {
+			throw new Error(
+				`Blink Login wurde nach ${this.loginFailureCount} fehlgeschlagenen Versuchen blockiert. ` +
+				`Bitte Zugangsdaten prüfen und Adapter neu starten.`,
+			);
+		}
+
+		try {
+			const session = await this.getBlinkSessionSafe(email, password, pin);
+			this.loginFailureCount = 0;
+			this.loginBlocked = false;
+			return session;
+		} catch (err) {
+			if (this.isCredentialError(err)) {
+				this.loginFailureCount += 1;
+
+				this.log.warn(
+					`Blink Login fehlgeschlagen (${this.loginFailureCount}/${this.maxLoginFailures}): ${err?.message || err}`,
+				);
+
+				if (this.loginFailureCount >= this.maxLoginFailures) {
+					this.loginBlocked = true;
+					this.session = null;
+					this.stopLoginRelatedTimers();
+					this.setState('info.connection', false, true);
+					this.log.error(
+						`Blink Login wurde nach ${this.maxLoginFailures} Fehlversuchen gestoppt. ` +
+						`Es werden keine weiteren Login-Versuche gestartet, um eine Blink-Sperre zu vermeiden. ` +
+						`Bitte E-Mail/Passwort/PIN prüfen und den Adapter neu starten.`,
+					);
+				}
+			}
+
+			throw err;
+		}
 	}
 
 	async onReady() {
@@ -149,7 +214,7 @@ class BlinkAdapter extends utils.Adapter {
 		this.subscribeStates('sync.*.commands.*');
 
 		try {
-			this.session = await blinkApi.getSession(email, password, pin);
+			this.session = await this.getBlinkSessionSafe(email, password, pin);
 			await this.pollOnce();
 			if (cleanupOldSnapshots) {
 				this.cleanupSnapshots();
@@ -165,7 +230,7 @@ class BlinkAdapter extends utils.Adapter {
 
 		this.pollTimer = setInterval(async () => {
 			try {
-				this.session = await blinkApi.getSession(email, password, pin);
+				this.session = await this.getBlinkSessionSafe(email, password, pin);
 				await this.pollOnce();
 			} catch (err) {
 				this.log.warn(`Poll-Fehler: ${err?.message || err}`);
