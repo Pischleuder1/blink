@@ -37,8 +37,8 @@ Fill out your credentials:
 - Supports battery warning states and notifications
 - Supports Smart Detection states for classified motion events (works only on paid cloud services)
 - Supports cloud stored videos and local stored videos on sd-card (SyncModule 2 and XR) via local server on port 8085 - JavaScript needed, see below !
-- The script requires ffmpeg installed and a lot resources and is only partially suitable for Raspberry Pis (min. 4GB — more is better)
-- initial release for live view with javascript
+- The script requires ffmpeg installed and a lot resources if you have a lot cameras and is then only partially suitable for Raspberry Pis (min. 4GB — more is better)
+- initial release for live view with javascript for each camera
 
 <details>
 <summary>press here to see the Script</summary>
@@ -81,24 +81,22 @@ const LIVEVIEW_HLS_SCRIPT   = path.join(LIVEVIEW_DIR, 'immi-live-hls.js');
 const HLS_DIR               = '/tmp/blink_hls';
 const LIVEVIEW_RUNTIME_SEC  = 300;
 
-// Zugangsdaten hier eintragen. PIN nur setzen, wenn Blink gerade einen Code verlangt.
-const LIVEVIEW_EMAIL        = 'YOUR-EMAIL';
-const LIVEVIEW_PASSWORD     = 'YOUR-PASSWORD';
-const LIVEVIEW_PIN          = 'PIN';
+// Blink-Zugangsdaten werden automatisch aus der Adapter-Admin-Konfiguration gelesen.
+// Erwartete Config-Keys in admin/jsonConfig.json: email, password, pin
+const BLINK_INSTANCE        = 'blink.0';
 
-// Fallbacks, weil dein ioBroker-Blink-Objektbaum account/network nicht pro Kamera enthält.
-const DEFAULT_ACCOUNT_ID    = 'YOUR-ACCOUNT-ID';
-const DEFAULT_NETWORK_ID    = 'YOUR DEFAULT NETWORK ID';
+// Account-ID wird automatisch aus ioBroker-Objekten, Adapter-Config oder vorhandenen Session-Dateien gesucht.
+// Nur als optionaler Notfall-Fallback setzen; im Normalfall leer lassen.
+const DEFAULT_ACCOUNT_ID    = '';
 
-// Typen/Seriennummern überschreiben/ergänzen. Serial wird sonst aus blink.0.cameras.<id>.info.serial gelesen.
+// Network-ID wird automatisch aus blink.0.sync.<networkId> gelesen.
+// Nur als optionaler Notfall-Fallback nutzen; bei mehreren Sync-Modulen NICHT blind setzen.
+const DEFAULT_NETWORK_ID    = '';
+
+// Sonderfälle überschreiben/ergänzen.
+// Normale Blink-Kameras brauchen keinen Eintrag mehr: fehlender Typ wird automatisch als "camera" behandelt.
+// Einträge sind nur nötig für owl/doorbell, falsche Seriennummern oder mehrere Sync-Module ohne Kamera-Zuordnung.
 const LIVEVIEW_CAMERA_OVERRIDES = {
-    '1754227': { type: 'camera', name: 'Auffahrt' },
-    '548730':  { type: 'camera', name: 'Dach vorne' },
-    '451140':  { type: 'camera', name: 'Keller' },
-    '1136121': { type: 'camera', name: 'Kellertreppe' },
-    '1934050': { type: 'camera', name: 'Kellertreppe 2' },
-    '1136145': { type: 'camera', name: 'Terrasse' },
-    '1723473': { type: 'camera', name: 'vorne Grill' },
     '773578':  { type: 'owl', serial: 'G8T1940153360515', name: 'Mini - 0515' }
 };
 // =========================================
@@ -124,6 +122,78 @@ let liveStatus = {
 
 function shellQuote(s) {
     return "'" + String(s == null ? '' : s).replace(/'/g, "'\\''") + "'";
+}
+
+function readBlinkCredentials() {
+    return new Promise((resolve, reject) => {
+        function pickNative(obj) {
+            const n = obj && obj.native ? obj.native : {};
+            const email = String(n.email || '').trim();
+            const password = String(n.password || '');
+            const pin = String(n.pin || '').trim();
+            return { email, password, pin };
+        }
+
+        function finish(source, creds) {
+            log(
+                'Blink Config gelesen aus ' + source + ': email=' + (creds.email ? 'ja' : 'nein') +
+                ', password=' + (creds.password ? 'ja' : 'nein') +
+                ', pin=' + (creds.pin ? 'ja' : 'nein')
+            );
+
+            if (!creds.email || !creds.password) {
+                reject(new Error(
+                    'Blink E-Mail oder Passwort fehlt in system.adapter.' + BLINK_INSTANCE +
+                    '.native.email/password'
+                ));
+                return;
+            }
+
+            resolve(creds);
+        }
+
+        function tryCliFallback(reason) {
+            const cmd = 'iobroker object get ' + shellQuote('system.adapter.' + BLINK_INSTANCE);
+            exec(cmd, { timeout: 15000 }, (err, stdout, stderr) => {
+                if (err) {
+                    reject(new Error(
+                        'Blink Adapter-Konfiguration konnte nicht gelesen werden. getObject: ' + reason +
+                        ' / CLI: ' + (stderr || err.message || String(err))
+                    ));
+                    return;
+                }
+
+                try {
+                    const obj = JSON.parse(stdout || '{}');
+                    finish('iobroker object get', pickNative(obj));
+                } catch (e) {
+                    reject(new Error('Blink Adapter-Konfiguration konnte nicht geparst werden: ' + e.message));
+                }
+            });
+        }
+
+        try {
+            getObject('system.adapter.' + BLINK_INSTANCE, (err, obj) => {
+                if (err || !obj || !obj.native) {
+                    tryCliFallback(err ? String(err) : 'kein Objekt/native');
+                    return;
+                }
+
+                const creds = pickNative(obj);
+
+                // In manchen JavaScript-Adapter-Kontexten kommen system.adapter.* Objekte ohne native-Werte an.
+                // Dann sicherheitshalber per ioBroker-CLI nachlesen, ohne die Werte ins Log zu schreiben.
+                if (!creds.email || !creds.password) {
+                    tryCliFallback('native leer oder unvollstaendig via getObject');
+                    return;
+                }
+
+                finish('getObject', creds);
+            });
+        } catch (e) {
+            tryCliFallback(e.message || String(e));
+        }
+    });
 }
 
 function execPromise(cmd, opts) {
@@ -194,6 +264,235 @@ async function readFirstStateString(ids) {
     return '';
 }
 
+let __syncNetworkIdsCache = null;
+
+function discoverSyncNetworkIds() {
+    if (__syncNetworkIdsCache) return __syncNetworkIdsCache;
+
+    const ids = new Set();
+    const selectors = [
+        'channel[id=blink.0.sync.*]',
+        'device[id=blink.0.sync.*]',
+        'state[id=blink.0.sync.*]'
+    ];
+
+    for (const selector of selectors) {
+        try {
+            $(selector).each((id) => {
+                const m = String(id).match(/^blink\.0\.sync\.(\d+)(?:\.|$)/);
+                if (m) ids.add(m[1]);
+            });
+        } catch (e) {
+            // Manche ioBroker-Installationen kennen nicht alle Selektortypen.
+        }
+    }
+
+    __syncNetworkIdsCache = Array.from(ids).sort();
+    return __syncNetworkIdsCache;
+}
+
+function getNetworkFallbackInfo() {
+    const syncIds = discoverSyncNetworkIds();
+
+    if (syncIds.length === 1) {
+        return {
+            networkId: syncIds[0],
+            ambiguous: false,
+            all: syncIds,
+            source: 'blink.0.sync.*'
+        };
+    }
+
+    if (syncIds.length > 1) {
+        return {
+            networkId: null,
+            ambiguous: true,
+            all: syncIds,
+            source: 'multiple blink.0.sync.*'
+        };
+    }
+
+    if (DEFAULT_NETWORK_ID) {
+        return {
+            networkId: String(DEFAULT_NETWORK_ID),
+            ambiguous: false,
+            all: [],
+            source: 'DEFAULT_NETWORK_ID'
+        };
+    }
+
+    return {
+        networkId: null,
+        ambiguous: false,
+        all: [],
+        source: 'none'
+    };
+}
+
+function addNumericCandidate(map, value, source) {
+    const v = String(value == null ? '' : value).trim();
+    if (!/^\d+$/.test(v)) return;
+    if (!map[v]) map[v] = [];
+    if (source && !map[v].includes(source)) map[v].push(source);
+}
+
+function scanAccountIdsFromAny(value, map, source, depth) {
+    // Wichtig: Nicht beliebige Zahlen aus JSON-Dateien als Account-ID sammeln.
+    // Sonst landen command_id, camera_id, duration, status_code usw. als falsche Kandidaten
+    // in der Account-Automatik. Wir akzeptieren nur explizite Account-Felder.
+    if (depth > 6 || value == null) return;
+
+    if (Array.isArray(value)) {
+        value.forEach((v, i) => scanAccountIdsFromAny(v, map, source + '[' + i + ']', depth + 1));
+        return;
+    }
+
+    if (typeof value !== 'object') return;
+
+    for (const key of Object.keys(value)) {
+        const lower = key.toLowerCase();
+        if (lower === 'account_id' || lower === 'accountid') {
+            addNumericCandidate(map, value[key], source + '.' + key);
+        } else if ((lower === 'id' || lower === 'account') && /accounts?$/i.test(source)) {
+            addNumericCandidate(map, value[key], source + '.' + key);
+        } else if (/(^|\.)accounts?(\.|$)|native\.accounts/i.test(source + '.' + key)) {
+            scanAccountIdsFromAny(value[key], map, source + '.' + key, depth + 1);
+        } else if (lower === 'account' && typeof value[key] === 'object') {
+            scanAccountIdsFromAny(value[key], map, source + '.' + key, depth + 1);
+        }
+    }
+}
+
+function discoverAccountIdsFromObjects(map) {
+    const selectors = [
+        'channel[id=blink.0.account.*]',
+        'device[id=blink.0.account.*]',
+        'state[id=blink.0.account.*]',
+        'channel[id=blink.0.accounts.*]',
+        'device[id=blink.0.accounts.*]',
+        'state[id=blink.0.accounts.*]'
+    ];
+
+    for (const selector of selectors) {
+        try {
+            $(selector).each((id) => {
+                const m = String(id).match(/^blink\.0\.accounts?\.(\d+)(?:\.|$)/);
+                if (m) addNumericCandidate(map, m[1], selector);
+            });
+        } catch (e) {
+            // Manche ioBroker-Installationen kennen nicht alle Selektortypen.
+        }
+    }
+}
+
+function discoverAccountIdsFromSessionFiles(map) {
+    const files = [];
+
+    try {
+        for (const f of fs.readdirSync('/tmp')) {
+            if (/^blink_liveview_session.*\.json$/.test(f)) files.push(path.join('/tmp', f));
+        }
+    } catch (e) {}
+
+    try {
+        const cacheDir = '/tmp/blink_session_cache';
+        if (fs.existsSync(cacheDir)) {
+            for (const f of fs.readdirSync(cacheDir)) {
+                if (/\.json$/i.test(f)) files.push(path.join(cacheDir, f));
+            }
+        }
+    } catch (e) {}
+
+    for (const file of files) {
+        try {
+            const obj = JSON.parse(fs.readFileSync(file, 'utf8'));
+            if (!obj || typeof obj !== 'object') continue;
+
+            // Nur explizite Account-Felder verwenden. Keine freie JSON-Zahlensuche.
+            addNumericCandidate(map, obj.account_id, file + '.account_id');
+            addNumericCandidate(map, obj.accountId, file + '.accountId');
+            addNumericCandidate(map, obj.raw_start && obj.raw_start.account_id, file + '.raw_start.account_id');
+            addNumericCandidate(map, obj.raw_start && obj.raw_start.accountId, file + '.raw_start.accountId');
+            addNumericCandidate(map, obj.raw_poll && obj.raw_poll.account_id, file + '.raw_poll.account_id');
+            addNumericCandidate(map, obj.raw_poll && obj.raw_poll.accountId, file + '.raw_poll.accountId');
+            if (obj.raw_poll && Array.isArray(obj.raw_poll.commands)) {
+                obj.raw_poll.commands.forEach((cmd, i) => {
+                    addNumericCandidate(map, cmd && cmd.account_id, file + '.raw_poll.commands[' + i + '].account_id');
+                    addNumericCandidate(map, cmd && cmd.accountId, file + '.raw_poll.commands[' + i + '].accountId');
+                });
+            }
+
+            // Falls die Datei eine echte Accounts-Struktur enthält, nur daraus extrahieren.
+            if (obj.accounts) scanAccountIdsFromAny(obj.accounts, map, file + '.accounts', 0);
+            if (obj.account) scanAccountIdsFromAny(obj.account, map, file + '.account', 0);
+        } catch (e) {}
+    }
+}
+
+function getObjectAsync(id) {
+    return new Promise((resolve) => {
+        try {
+            getObject(id, (err, obj) => resolve(!err && obj ? obj : null));
+        } catch (e) {
+            resolve(null);
+        }
+    });
+}
+
+async function getAccountFallbackInfo() {
+    const map = {};
+
+    discoverAccountIdsFromObjects(map);
+    discoverAccountIdsFromSessionFiles(map);
+
+    const adapterObj = await getObjectAsync('system.adapter.' + BLINK_INSTANCE);
+    if (adapterObj && adapterObj.native) {
+        addNumericCandidate(map, adapterObj.native.accountId, 'adapter-config.accountId');
+        addNumericCandidate(map, adapterObj.native.account_id, 'adapter-config.account_id');
+        scanAccountIdsFromAny(adapterObj.native.accounts, map, 'adapter-config.accounts', 0);
+    }
+
+    const stateAccountId = await readFirstStateString([
+        'blink.0.account_id',
+        'blink.0.accountId',
+        'blink.0.info.account_id',
+        'blink.0.info.accountId',
+        'blink.0.config.account_id',
+        'blink.0.config.accountId',
+        'blink.0.account.id'
+    ]);
+    if (stateAccountId) addNumericCandidate(map, stateAccountId, 'blink.0 account state');
+
+    if (DEFAULT_ACCOUNT_ID) addNumericCandidate(map, DEFAULT_ACCOUNT_ID, 'DEFAULT_ACCOUNT_ID');
+
+    const ids = Object.keys(map).sort();
+
+    if (ids.length === 1) {
+        return {
+            accountId: ids[0],
+            ambiguous: false,
+            all: ids,
+            sources: map
+        };
+    }
+
+    if (ids.length > 1) {
+        return {
+            accountId: null,
+            ambiguous: true,
+            all: ids,
+            sources: map
+        };
+    }
+
+    return {
+        accountId: null,
+        ambiguous: false,
+        all: [],
+        sources: map
+    };
+}
+
 async function buildLiveviewConfigForCamera(cam) {
     const id = String(cam.id);
     const ov = LIVEVIEW_CAMERA_OVERRIDES[id] || {};
@@ -206,26 +505,60 @@ async function buildLiveviewConfigForCamera(cam) {
         CAMERA_PREFIX + id + '.info.serialNumber'
     ]);
 
-    const type = ov.type || await readFirstStateString([
+    // Typ automatisch erkennen, sonst Standard: normale Blink-Kamera.
+    // Sonderfälle wie owl/doorbell per LIVEVIEW_CAMERA_OVERRIDES setzen.
+    const detectedType = await readFirstStateString([
         CAMERA_PREFIX + id + '.info.type',
         CAMERA_PREFIX + id + '.type',
         CAMERA_PREFIX + id + '.device.type',
         CAMERA_PREFIX + id + '.info.device_type',
         CAMERA_PREFIX + id + '.info.deviceType'
     ]);
+    const type = ov.type || detectedType || 'camera';
 
-    const accountId = ov.accountId || DEFAULT_ACCOUNT_ID;
-    const networkId = ov.networkId || DEFAULT_NETWORK_ID;
+    const detectedNetworkId = await readFirstStateString([
+        CAMERA_PREFIX + id + '.info.network_id',
+        CAMERA_PREFIX + id + '.info.networkId',
+        CAMERA_PREFIX + id + '.network_id',
+        CAMERA_PREFIX + id + '.networkId',
+        CAMERA_PREFIX + id + '.network.id',
+        CAMERA_PREFIX + id + '.device.network_id',
+        CAMERA_PREFIX + id + '.device.networkId'
+    ]);
+
+    const detectedAccountId = await readFirstStateString([
+        CAMERA_PREFIX + id + '.info.account_id',
+        CAMERA_PREFIX + id + '.info.accountId',
+        CAMERA_PREFIX + id + '.account_id',
+        CAMERA_PREFIX + id + '.accountId',
+        CAMERA_PREFIX + id + '.account.id',
+        CAMERA_PREFIX + id + '.device.account_id',
+        CAMERA_PREFIX + id + '.device.accountId'
+    ]);
+
+    const accountFallback = await getAccountFallbackInfo();
+    const networkFallback = getNetworkFallbackInfo();
+    const accountId = ov.accountId || detectedAccountId || accountFallback.accountId;
+    const networkId = ov.networkId || detectedNetworkId || networkFallback.networkId;
 
     const missing = [];
+    const warnings = [];
     if (!accountId) missing.push('accountId');
     if (!networkId) missing.push('networkId');
     if (!type) missing.push('type');
     if (!id) missing.push('id');
     if (!serial) missing.push('serial');
 
+    if (!accountId && accountFallback.ambiguous) {
+        warnings.push('Mehrere Account-IDs gefunden (' + accountFallback.all.join(', ') + '), aber keine Kamera-accountId. Bitte accountId per LIVEVIEW_CAMERA_OVERRIDES setzen.');
+    }
+
+    if (!networkId && networkFallback.ambiguous) {
+        warnings.push('Mehrere Sync-Module gefunden (' + networkFallback.all.join(', ') + '), aber keine Kamera-networkId. Bitte networkId per LIVEVIEW_CAMERA_OVERRIDES setzen.');
+    }
+
     if (missing.length) {
-        return { liveview: null, missing: missing };
+        return { liveview: null, missing: missing, warnings: warnings, syncNetworks: networkFallback.all, accountCandidates: accountFallback.all };
     }
 
     return {
@@ -236,9 +569,15 @@ async function buildLiveviewConfigForCamera(cam) {
             networkId: String(networkId),
             type: String(type),
             serial: String(serial),
-            hasSerial: true
+            hasSerial: true,
+            accountSource: ov.accountId ? 'override' : (detectedAccountId ? 'camera-state' : (accountFallback.sources && accountFallback.sources[accountId] ? accountFallback.sources[accountId].join(', ') : 'auto')),
+            accountCandidates: accountFallback.all,
+            networkSource: ov.networkId ? 'override' : (detectedNetworkId ? 'camera-state' : networkFallback.source)
         },
-        missing: []
+        missing: [],
+        warnings: warnings,
+        syncNetworks: networkFallback.all,
+        accountCandidates: accountFallback.all
     };
 }
 
@@ -272,7 +611,8 @@ async function discoverCameras() {
                 name: null,
                 liveview: null,
                 liveCapable: false,
-                liveMissing: []
+                liveMissing: [],
+                liveWarnings: []
             });
         }
     });
@@ -284,6 +624,9 @@ async function discoverCameras() {
         c.liveview = live.liveview;
         c.liveCapable = !!live.liveview;
         c.liveMissing = live.missing || [];
+        c.liveWarnings = live.warnings || [];
+        c.syncNetworks = live.syncNetworks || discoverSyncNetworkIds();
+        c.accountCandidates = live.accountCandidates || [];
     }
 
     return cams.sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
@@ -345,11 +688,13 @@ async function startLiveForCamera(cameraId, req) {
     try { fs.rmSync('/tmp/blink_liveview_session.json', { force: true }); } catch (e) {}
     try { fs.rmSync(bridgeLog, { force: true }); } catch (e) {}
 
+    const creds = await readBlinkCredentials();
+
     const restCmd =
         'cd ' + shellQuote(LIVEVIEW_DIR) + ' && ' +
-        'BLINK_EMAIL=' + shellQuote(LIVEVIEW_EMAIL) + ' ' +
-        'BLINK_PASSWORD=' + shellQuote(LIVEVIEW_PASSWORD) + ' ' +
-        'BLINK_PIN=' + shellQuote(LIVEVIEW_PIN) + ' ' +
+        'BLINK_EMAIL=' + shellQuote(creds.email) + ' ' +
+        'BLINK_PASSWORD=' + shellQuote(creds.password) + ' ' +
+        'BLINK_PIN=' + shellQuote(creds.pin) + ' ' +
         'BLINK_ACCOUNT_ID=' + shellQuote(lv.accountId) + ' ' +
         'BLINK_NETWORK_ID=' + shellQuote(lv.networkId) + ' ' +
         'BLINK_DEVICE_TYPE=' + shellQuote(lv.type) + ' ' +
@@ -1071,11 +1416,17 @@ const server = http.createServer(async (req, res) => {
                     id: c.liveview.id,
                     name: c.liveview.name,
                     accountId: c.liveview.accountId,
+                    accountSource: c.liveview.accountSource,
+                    accountCandidates: c.liveview.accountCandidates || c.accountCandidates || [],
                     networkId: c.liveview.networkId,
+                    networkSource: c.liveview.networkSource,
                     type: c.liveview.type,
                     hasSerial: !!c.liveview.serial
                 } : null,
-                missing: c.liveMissing || []
+                missing: c.liveMissing || [],
+                warnings: c.liveWarnings || [],
+                accountCandidates: c.accountCandidates || [],
+                syncNetworks: c.syncNetworks || []
             }));
             res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-cache, no-store, must-revalidate' });
             res.end(JSON.stringify(out, null, 2));
