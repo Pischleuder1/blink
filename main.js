@@ -5,6 +5,7 @@
 
 const utils = require('@iobroker/adapter-core');
 const fs = require('node:fs');
+const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -30,6 +31,12 @@ class BlinkAdapter extends utils.Adapter {
 		this.session = null;
 		this.mjpegServer = null;
 		this.mjpegStatusTimer = null;
+
+		// Neues Gerüst für echten 30s-Livestream (später Blink-App-Liveview / RTSP/HLS)
+		this.liveSessions = new Map();
+		this.liveStopTimers = new Map();
+		this.liveProcesses = new Map();
+		this.hlsServer = null;
 	}
 
 	async onReady() {
@@ -62,12 +69,14 @@ class BlinkAdapter extends utils.Adapter {
 		// MJPEG-Streaming-Konfiguration (alle Felder optional, Streaming ist opt-in)
 		const streamEnabled = this.config.streamEnabled === true;
 		const streamPort = Math.max(1024, Math.min(65535, Number(this.config.streamPort) || 8089));
+		const hlsPort = Math.max(1024, Math.min(65535, Number(this.config.hlsPort) || (streamPort + 1)));
 		let streamToken = (this.config.streamToken || '').trim();
 		const streamPublicHost = (this.config.streamPublicHost || '').trim();
 		const streamWiredIntervalSec = Math.max(5, Number(this.config.streamWiredIntervalSec) || 8);
 		const streamBatteryIntervalSec = Math.max(8, Number(this.config.streamBatteryIntervalSec) || 10);
 		const streamBatteryIdleTimeoutSec = Math.max(15, Number(this.config.streamBatteryIdleTimeoutSec) || 60);
 		const streamBatteryMinLevel = Math.max(0, Math.min(3, this.toNum(this.config.streamBatteryMinLevel) ?? 2));
+		const ffmpegPath = (this.config.ffmpegPath || '').trim();
 
 		// Token automatisch generieren, wenn leer und Streaming aktiv – und in
 		// der eigenen Adapter-Konfiguration persistieren, damit der Token nach
@@ -103,12 +112,14 @@ class BlinkAdapter extends utils.Adapter {
 			batteryWarningCooldownHours,
 			streamEnabled,
 			streamPort,
+			hlsPort,
 			streamToken,
 			streamPublicHost,
 			streamWiredIntervalSec,
 			streamBatteryIntervalSec,
 			streamBatteryIdleTimeoutSec,
 			streamBatteryMinLevel,
+			ffmpegPath,
 		};
 
 		if (!email || !password) {
@@ -324,6 +335,18 @@ class BlinkAdapter extends utils.Adapter {
 			true,
 		);
 
+		// Neues Gerüst für echten 30s-Livestream
+		await this.ensureState(`${base}.live.mode`, 'Live-Modus', 'string', 'text', false);
+		await this.ensureState(`${base}.live.active`, 'Echte Live-Session aktiv', 'boolean', 'indicator', false);
+		await this.ensureState(`${base}.live.url`, 'Live-URL', 'string', 'text.url', false);
+		await this.ensureState(`${base}.live.expires_at`, 'Live läuft bis', 'string', 'date', false);
+		await this.ensureState(`${base}.live.last_error`, 'Letzter Live-Fehler', 'string', 'text', false);
+		await this.ensureState(`${base}.live.session_id`, 'Live Session-ID', 'string', 'text', false);
+		await this.ensureState(`${base}.live.backend`, 'Live Backend', 'string', 'text', false);
+
+		await this.ensureState(`${base}.commands.start_live`, 'Echten Live-Stream starten', 'boolean', 'button', true);
+		await this.ensureState(`${base}.commands.stop_live`, 'Echten Live-Stream stoppen', 'boolean', 'button', true);
+
 		await this.initStateIfUnset(`${base}.status.armed`, false);
 		await this.initStateIfUnset(`${base}.status.battery_text`, '');
 		await this.initStateIfUnset(`${base}.status.temperature_text`, '');
@@ -363,6 +386,16 @@ class BlinkAdapter extends utils.Adapter {
 		await this.initStateIfUnset(`${base}.live.stream_url`, '');
 		await this.initStateIfUnset(`${base}.live.stream_active`, false);
 		await this.initStateIfUnset(`${base}.commands.live_request`, false);
+
+		await this.initStateIfUnset(`${base}.live.mode`, 'idle');
+		await this.initStateIfUnset(`${base}.live.active`, false);
+		await this.initStateIfUnset(`${base}.live.url`, '');
+		await this.initStateIfUnset(`${base}.live.expires_at`, '');
+		await this.initStateIfUnset(`${base}.live.last_error`, '');
+		await this.initStateIfUnset(`${base}.live.session_id`, '');
+		await this.initStateIfUnset(`${base}.live.backend`, '');
+		await this.initStateIfUnset(`${base}.commands.start_live`, false);
+		await this.initStateIfUnset(`${base}.commands.stop_live`, false);
 	}
 
 	async setCameraStates(base, cam, devId) {
@@ -465,6 +498,8 @@ class BlinkAdapter extends utils.Adapter {
 		}
 
 		await this.setStateAsync(`${base}.commands.fetch_video`, false, true);
+		await this.setStateAsync(`${base}.commands.start_live`, false, true);
+		await this.setStateAsync(`${base}.commands.stop_live`, false, true);
 	}
 
 	async ensureSyncObjects(base, mod) {
@@ -589,6 +624,120 @@ class BlinkAdapter extends utils.Adapter {
 		return 'localhost';
 	}
 
+
+	async startHlsServer() {
+		if (this.hlsServer) {
+			return;
+		}
+		const port = Number(this.cfg.hlsPort) || (Number(this.cfg.streamPort) + 1) || 8090;
+		const rootDir = path.join(this.cfg.snapshotDir, 'live');
+		const MIME = {
+			'.m3u8': 'application/vnd.apple.mpegurl',
+			'.ts': 'video/mp2t',
+			'.m4s': 'video/iso.segment',
+			'.mp4': 'video/mp4',
+		};
+
+		this.hlsServer = http.createServer((req, res) => {
+			try {
+				res.setHeader('Access-Control-Allow-Origin', '*');
+				res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+				if (req.method === 'OPTIONS') {
+					res.writeHead(204);
+					res.end();
+					return;
+				}
+
+				const u = new URL(req.url, `http://127.0.0.1:${port}`);
+				const m = u.pathname.match(/^\/live\/([^/]+)\/([^/]+)$/);
+				if (!m) {
+					res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+					res.end('Not found');
+					return;
+				}
+				const devId = decodeURIComponent(m[1]);
+				const filename = decodeURIComponent(m[2]);
+				if (!/^[A-Za-z0-9_.-]+$/.test(filename)) {
+					res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
+					res.end('Forbidden');
+					return;
+				}
+				const filePath = path.join(rootDir, devId, filename);
+				const normRoot = path.resolve(rootDir);
+				const normPath = path.resolve(filePath);
+				if (!normPath.startsWith(normRoot + path.sep) && normPath !== normRoot) {
+					res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
+					res.end('Forbidden');
+					return;
+				}
+				fs.stat(normPath, (err, stat) => {
+					if (err || !stat.isFile()) {
+						res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+						res.end('File Not Found');
+						return;
+					}
+					const ext = path.extname(filename).toLowerCase();
+					res.writeHead(200, {
+						'Content-Type': MIME[ext] || 'application/octet-stream',
+						'Content-Length': stat.size,
+						'Cache-Control': 'no-cache, no-store, must-revalidate',
+						'Pragma': 'no-cache',
+						'Expires': '0',
+					});
+					fs.createReadStream(normPath).pipe(res);
+				});
+			} catch (e) {
+				res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+				res.end(String(e?.message || e));
+			}
+		});
+
+		await new Promise((resolve, reject) => {
+			this.hlsServer.once('error', reject);
+			this.hlsServer.listen(port, () => resolve());
+		});
+
+		this.log.info(`HLS-Server: öffentliche URL-Basis http://${this.resolveStreamHost()}:${port}/live/`);
+	}
+
+	async stopHlsServer() {
+		if (!this.hlsServer) {
+			return;
+		}
+		const srv = this.hlsServer;
+		this.hlsServer = null;
+		await new Promise(resolve => {
+			try {
+				srv.close(() => resolve());
+			} catch {
+				resolve();
+			}
+		});
+	}
+
+
+	resolveFfmpegBinary() {
+		const configured = String(this.config.ffmpegPath || this.cfg?.ffmpegPath || '').trim();
+		if (configured && fs.existsSync(configured)) {
+			return configured;
+		}
+		const candidates = [
+			'/usr/bin/ffmpeg',
+			'/usr/local/bin/ffmpeg',
+			'/bin/ffmpeg',
+		];
+		for (const candidate of candidates) {
+			try {
+				if (fs.existsSync(candidate)) {
+					return candidate;
+				}
+			} catch {
+				// ignore
+			}
+		}
+		return 'ffmpeg';
+	}
+
 	async startMjpegServer() {
 		if (this.mjpegServer) {
 			return;
@@ -664,6 +813,255 @@ class BlinkAdapter extends utils.Adapter {
 		this.mjpegServer.manualWake(devId);
 	}
 
+	async setRealLiveStates(devId, patch = {}) {
+		const base = `cameras.${devId}.live`;
+		if (Object.prototype.hasOwnProperty.call(patch, 'mode')) {
+			await this.setStateAsync(`${base}.mode`, String(patch.mode || ''), true);
+		}
+		if (Object.prototype.hasOwnProperty.call(patch, 'active')) {
+			await this.setStateAsync(`${base}.active`, !!patch.active, true);
+		}
+		if (Object.prototype.hasOwnProperty.call(patch, 'url')) {
+			await this.setStateAsync(`${base}.url`, String(patch.url || ''), true);
+		}
+		if (Object.prototype.hasOwnProperty.call(patch, 'expires_at')) {
+			await this.setStateAsync(`${base}.expires_at`, String(patch.expires_at || ''), true);
+		}
+		if (Object.prototype.hasOwnProperty.call(patch, 'last_error')) {
+			await this.setStateAsync(`${base}.last_error`, String(patch.last_error || ''), true);
+		}
+		if (Object.prototype.hasOwnProperty.call(patch, 'session_id')) {
+			await this.setStateAsync(`${base}.session_id`, String(patch.session_id || ''), true);
+		}
+		if (Object.prototype.hasOwnProperty.call(patch, 'backend')) {
+			await this.setStateAsync(`${base}.backend`, String(patch.backend || ''), true);
+		}
+	}
+
+	async startHlsProxy(devId, live) {
+		const { spawn } = require('node:child_process');
+		await this.startHlsServer();
+		const outDir = path.join(this.cfg.snapshotDir, 'live', devId);
+		fs.mkdirSync(outDir, { recursive: true });
+		const playlist = path.join(outDir, 'index.m3u8');
+
+		try {
+			for (const f of fs.readdirSync(outDir)) {
+				fs.unlinkSync(path.join(outDir, f));
+			}
+		} catch {
+			// ignore
+		}
+
+		const args = [
+			'-rtsp_transport', 'tcp',
+			'-i', String(live.sourceUrl || ''),
+			'-an',
+			'-c:v', 'copy',
+			'-t', '30',
+			'-f', 'hls',
+			'-hls_time', '1',
+			'-hls_list_size', '10',
+			'-hls_flags', 'delete_segments+append_list+independent_segments',
+			'-hls_segment_filename', path.join(outDir, 'seg_%03d.ts'),
+			playlist,
+		];
+
+		const ffmpegBin = this.resolveFfmpegBinary();
+		let stderr = '';
+		let spawnError = null;
+		this.log.info(`ffmpeg live ${devId} starte: ${ffmpegBin}`);
+		let proc;
+		try {
+			proc = spawn(ffmpegBin, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+		} catch (e) {
+			throw new Error(`ffmpeg konnte nicht gestartet werden (${ffmpegBin}): ${e?.message || e}`);
+		}
+		proc.on('error', err => {
+			spawnError = err;
+		});
+		proc.stderr.on('data', chunk => {
+			stderr += String(chunk || '');
+			if (stderr.length > 4000) {
+				stderr = stderr.slice(-4000);
+			}
+		});
+		proc.on('exit', code => {
+			if (code && code !== 0) {
+				this.log.warn(`ffmpeg live ${devId} exit=${code}: ${stderr.slice(-1000)}`);
+			}
+			this.liveProcesses.delete(devId);
+		});
+		this.liveProcesses.set(devId, proc);
+
+		const start = Date.now();
+		while (Date.now() - start < 10000) {
+			if (spawnError) {
+				throw new Error(`ffmpeg Startfehler (${ffmpegBin}): ${spawnError?.message || spawnError}`);
+			}
+			if (fs.existsSync(playlist)) {
+				break;
+			}
+			if (proc.exitCode != null && proc.exitCode !== 0) {
+				throw new Error(`ffmpeg beendet mit Code ${proc.exitCode}: ${stderr.slice(-500)}`);
+			}
+			await new Promise(resolve => setTimeout(resolve, 250));
+		}
+		if (!fs.existsSync(playlist)) {
+			throw new Error(`HLS-Playlist wurde nicht erzeugt: ${stderr.slice(-500)}`);
+		}
+
+		return `http://${this.resolveStreamHost()}:${this.cfg.hlsPort}/live/${encodeURIComponent(devId)}/index.m3u8`;
+	}
+
+	async startRealLive(devId) {
+		const cam = this.camerasById.get(devId);
+		if (!cam?.id || !cam?.network_id) {
+			this.log.warn(`startRealLive: Kamera ${devId} nicht gefunden`);
+			return;
+		}
+
+		await this.stopRealLive(devId, 'restart');
+
+		await this.setRealLiveStates(devId, {
+			mode: 'starting',
+			active: false,
+			url: '',
+			expires_at: '',
+			last_error: '',
+			session_id: '',
+			backend: '',
+		});
+
+		try {
+			let backend = '';
+			let publicUrl = '';
+			let sessionId = '';
+			let expiresAt = new Date(Date.now() + 30000).toISOString();
+
+			let usedFallback = false;
+
+			if (typeof blinkApi.startLiveView === 'function') {
+				try {
+					const live = await blinkApi.startLiveView(this.session, cam.network_id, cam.id, cam.apiType);
+					backend = String(live?.backend || '');
+					sessionId = String(live?.sessionId || '');
+					expiresAt = String(live?.expiresAt || expiresAt);
+
+					if (backend === 'blink_direct') {
+						publicUrl = String(live?.sourceUrl || '');
+					} else if (backend === 'rtsp_hls') {
+						publicUrl = await this.startHlsProxy(devId, live);
+					} else {
+						throw new Error(`Unbekanntes Live-Backend: ${backend || 'leer'}`);
+					}
+				} catch (e) {
+					this.log.warn(`startLiveView fehlgeschlagen, nutze MJPEG-Fallback für ${devId}: ${e?.message || e}`);
+					usedFallback = true;
+				}
+			} else {
+				usedFallback = true;
+			}
+
+			if (usedFallback) {
+				if (!this.mjpegServer) {
+					throw new Error('Weder echter Liveview noch MJPEG-Server verfügbar');
+				}
+				this.requestLive(devId);
+				backend = 'mjpeg_fallback';
+				publicUrl = this.mjpegServer.streamUrl(devId);
+				sessionId = `mjpeg-${Date.now()}`;
+				expiresAt = new Date(Date.now() + 30000).toISOString();
+			}
+
+			this.liveSessions.set(devId, {
+				sessionId,
+				backend,
+				publicUrl,
+				expiresAt,
+				networkId: cam.network_id,
+				cameraId: cam.id,
+				apiType: cam.apiType || 'camera',
+			});
+
+			await this.setRealLiveStates(devId, {
+				mode: 'running',
+				active: true,
+				url: publicUrl,
+				expires_at: expiresAt,
+				session_id: sessionId,
+				backend,
+			});
+
+			const t = setTimeout(() => {
+				this.stopRealLive(devId, 'timeout').catch(e =>
+					this.log.warn(`stopRealLive timeout ${devId}: ${e?.message || e}`),
+				);
+			}, 30000);
+			this.liveStopTimers.set(devId, t);
+		} catch (e) {
+			await this.setRealLiveStates(devId, {
+				mode: 'error',
+				active: false,
+				last_error: e?.message || String(e),
+			});
+			this.log.warn(`startRealLive ${devId}: ${e?.message || e}`);
+		}
+	}
+
+	async stopRealLive(devId, reason = 'manual') {
+		const timer = this.liveStopTimers.get(devId);
+		if (timer) {
+			clearTimeout(timer);
+			this.liveStopTimers.delete(devId);
+		}
+
+		const proc = this.liveProcesses.get(devId);
+		if (proc) {
+			try {
+				proc.kill('SIGTERM');
+			} catch {
+				// ignore
+			}
+			this.liveProcesses.delete(devId);
+		}
+
+		const liveSession = this.liveSessions.get(devId);
+		if (!liveSession) {
+			await this.setRealLiveStates(devId, {
+				mode: 'idle',
+				active: false,
+				url: '',
+				expires_at: '',
+				session_id: '',
+				backend: '',
+				last_error: '',
+			});
+			return;
+		}
+
+		await this.setRealLiveStates(devId, { mode: 'stopping' });
+
+		try {
+			if (liveSession.backend !== 'mjpeg_fallback' && typeof blinkApi.stopLiveView === 'function') {
+				await blinkApi.stopLiveView(this.session, liveSession);
+			}
+		} catch (e) {
+			this.log.debug(`stopLiveView ${devId}: ${e?.message || e}`);
+		}
+
+		this.liveSessions.delete(devId);
+		await this.setRealLiveStates(devId, {
+			mode: 'idle',
+			active: false,
+			url: '',
+			expires_at: '',
+			session_id: '',
+			backend: '',
+			last_error: reason === 'timeout' ? '' : '',
+		});
+	}
+
 	async onStateChange(id, state) {
 		if (!state || state.ack) {
 			return;
@@ -692,7 +1090,19 @@ class BlinkAdapter extends utils.Adapter {
 					throw new Error('Kamera unbekannt (warte auf nächsten Poll)');
 				}
 
-				if (cmd === 'motion_detect') {
+				if (cmd === 'start_live') {
+					if (state.val !== true) {
+						return;
+					}
+					await this.startRealLive(devId);
+					await this.setStateAsync(this.stripNs(id), false, true);
+				} else if (cmd === 'stop_live') {
+					if (state.val !== true) {
+						return;
+					}
+					await this.stopRealLive(devId, 'manual');
+					await this.setStateAsync(this.stripNs(id), false, true);
+				} else if (cmd === 'motion_detect') {
 					const enable = state.val === true;
 					await blinkApi.setMotion(this.session, cam.network_id, cam.id, enable, cam.apiType);
 					await this.setStateAsync(`cameras.${devId}.status.motion_detect_enabled`, enable, true);
@@ -732,6 +1142,15 @@ class BlinkAdapter extends utils.Adapter {
 						return;
 					}
 					this.requestLive(devId);
+					await this.setRealLiveStates(devId, {
+						mode: 'running',
+						active: true,
+						url: this.mjpegServer ? this.mjpegServer.streamUrl(devId) : '',
+						expires_at: new Date(Date.now() + 30000).toISOString(),
+						session_id: `mjpeg-${Date.now()}`,
+						backend: 'mjpeg_fallback',
+						last_error: '',
+					});
 					await this.setStateAsync(this.stripNs(id), false, true);
 				}
 			} else if (group === 'sync') {
@@ -1196,17 +1615,39 @@ class BlinkAdapter extends utils.Adapter {
 				clearInterval(this.mjpegStatusTimer);
 				this.mjpegStatusTimer = null;
 			}
+
+			for (const timer of this.liveStopTimers.values()) {
+				clearTimeout(timer);
+			}
+			this.liveStopTimers.clear();
+
+			for (const proc of this.liveProcesses.values()) {
+				try {
+					proc.kill('SIGTERM');
+				} catch {
+					// ignore
+				}
+			}
+			this.liveProcesses.clear();
+			this.liveSessions.clear();
+
+			const finish = () => {
+				this.stopHlsServer()
+					.catch(() => {})
+					.finally(() => cb());
+			};
+
 			if (this.mjpegServer) {
 				this.mjpegServer
 					.stop()
 					.catch(() => {})
 					.finally(() => {
 						this.mjpegServer = null;
-						cb();
+						finish();
 					});
 				return;
 			}
-			cb();
+			finish();
 		} catch {
 			cb();
 		}
