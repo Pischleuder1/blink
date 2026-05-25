@@ -139,6 +139,12 @@ class BlinkAdapter extends utils.Adapter {
 			native: {},
 		});
 
+		try {
+			await this.installBlinkVideoUrlServerScript();
+		} catch (e) {
+			this.log.warn(`Blink Video-URL-Server-Script konnte nicht installiert werden: ${e?.message || e}`);
+		}
+
 		this.subscribeStates('cameras.*.commands.*');
 		this.subscribeStates('sync.*.commands.*');
 
@@ -172,6 +178,71 @@ class BlinkAdapter extends utils.Adapter {
 				() => this.updateLiveSnapshots().catch(e => this.log.warn(`Live-Snapshot-Fehler: ${e?.message || e}`)),
 				liveSnapshotIntervalSec * 1000,
 			);
+		}
+	}
+
+
+	async installBlinkVideoUrlServerScript() {
+		const scriptId = 'script.js.common.blink-video-url-server';
+		const sourceFile = path.join(__dirname, 'lib', 'blink-video-url-server.json');
+
+		try {
+			const existing = await this.getForeignObjectAsync(scriptId);
+			if (existing) {
+				this.log.info(`Blink Video-URL-Server-Script existiert bereits (${scriptId}) – Installation wird übersprungen.`);
+				return;
+			}
+
+			if (!fs.existsSync(sourceFile)) {
+				this.log.warn(`Blink Video-URL-Server-Vorlage nicht gefunden: ${sourceFile}`);
+				return;
+			}
+
+			const raw = fs.readFileSync(sourceFile, 'utf8');
+			let parsed = null;
+			let source = '';
+			let template = null;
+
+			try {
+				parsed = JSON.parse(raw);
+			} catch {
+				// Fallback: Falls die Datei trotz .json-Endung reinen JavaScript-Code enthält,
+				// wird der Dateiinhalt direkt als Script-Quelle verwendet.
+				source = raw;
+			}
+
+			if (parsed !== null) {
+				if (typeof parsed === 'string') {
+					source = parsed;
+				} else if (parsed && typeof parsed === 'object') {
+					template = parsed;
+					source = String(parsed?.common?.source || parsed?.source || '');
+				}
+			}
+
+			if (!source.trim()) {
+				this.log.warn(`Blink Video-URL-Server-Vorlage enthält keine Script-Quelle: ${sourceFile}`);
+				return;
+			}
+
+			const obj = {
+				type: 'script',
+				common: {
+					name: template?.common?.name || template?.name || 'blink-video-url-server',
+					enabled: template?.common?.enabled === true,
+					engine: template?.common?.engine || 'system.adapter.javascript.0',
+					engineType: template?.common?.engineType || 'Javascript/js',
+					source,
+					debug: template?.common?.debug === true,
+					verbose: template?.common?.verbose === true,
+				},
+				native: template?.native || {},
+			};
+
+			await this.setForeignObjectAsync(scriptId, obj);
+			this.log.info(`Blink Video-URL-Server-Script wurde angelegt: ${scriptId}`);
+		} catch (e) {
+			this.log.warn(`Blink Video-URL-Server-Script konnte nicht angelegt werden: ${e?.message || e}`);
 		}
 	}
 
