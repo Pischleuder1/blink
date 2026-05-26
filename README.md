@@ -43,7 +43,7 @@ Fill out your credentials:
 
 
 
-# Blink Adapter: Datapoints
+## Blink Adapter: Datapoints
 
 Overview of all datapoints provided by the customized ioBroker adapter `blink.0`.
 Status: after refactoring for cloud history + local-storage fallback.
@@ -264,6 +264,8 @@ All product and company names or logos are trademarks™ or registered® tradema
 ### 0.0.6 (2026-04-28)
 * Blink PanTilt and Blink Mini - temperature_text and battery_text set to "not available" because of no built in temperature and battery indicator
 * blink.0.xxx.xxx.status.wifi_strength fixed
+
+**Note:** For older changes, see [CHANGELOG_OLD.md](CHANGELOG_OLD.md).
 
 ## License
 
