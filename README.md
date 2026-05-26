@@ -1289,7 +1289,7 @@ onStop(() => {
 ```
 </details>
 
-# Blink Adapter: Datapoints
+## Blink Adapter: Datapoints
 
 Overview of all datapoints provided by the customized ioBroker adapter `blink.0`.
 Status: after refactoring for cloud history + local-storage fallback.
