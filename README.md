@@ -1511,6 +1511,8 @@ All product and company names or logos are trademarks™ or registered® tradema
 * Blink PanTilt and Blink Mini - temperature_text and battery_text set to "not available" because of no built in temperature and battery indicator
 * blink.0.xxx.xxx.status.wifi_strength fixed
 
+**Note:** For older changes, see [CHANGELOG_OLD.md](CHANGELOG_OLD.md).
+
 ## License
 
 MIT License
