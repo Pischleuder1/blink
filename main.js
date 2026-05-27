@@ -26,6 +26,8 @@ class BlinkAdapter extends utils.Adapter {
 		this.videoSyncInProgress = false;
 		this.videoCheckCooldownMs = 25 * 1000;
 		this.lastVideoCheckByDevId = new Map();
+		this.videoBusyUntilByDevId = new Map();
+		this.videoBusyCooldownMs = 2 * 60 * 1000;
 		this.camerasById = new Map();
 		this.syncById = new Map();
 		this.session = null;
@@ -75,7 +77,7 @@ class BlinkAdapter extends utils.Adapter {
 		}
 
 		try {
-			const session = await this.getBlinkSessionSafe(email, password, pin);
+			const session = await blinkApi.getSession(email, password, pin);
 			this.loginFailureCount = 0;
 			this.loginBlocked = false;
 			return session;
@@ -102,6 +104,54 @@ class BlinkAdapter extends utils.Adapter {
 
 			throw err;
 		}
+	}
+
+
+	isBlinkSystemBusyError(err) {
+		const msg = String(err?.message || err || '').toLowerCase();
+
+		return (
+			msg.includes('system is busy') ||
+			msg.includes('http 409') ||
+			msg.includes('status 409') ||
+			msg.includes('"code":307') ||
+			msg.includes('code 307') ||
+			msg.includes('code=307')
+		);
+	}
+
+	getVideoBusyRemainingMs(devId) {
+		const until = this.videoBusyUntilByDevId.get(devId) || 0;
+		if (!until) {
+			return 0;
+		}
+		const remaining = until - Date.now();
+		if (remaining <= 0) {
+			this.videoBusyUntilByDevId.delete(devId);
+			return 0;
+		}
+		return remaining;
+	}
+
+	isVideoBusyCooldownActive(devId) {
+		return this.getVideoBusyRemainingMs(devId) > 0;
+	}
+
+	async markVideoBusy(devId, cam, err) {
+		const until = Date.now() + this.videoBusyCooldownMs;
+		this.videoBusyUntilByDevId.set(devId, until);
+
+		const retryAt = new Date(until).toISOString();
+		const msg = `System is busy, retry after ${retryAt}`;
+
+		try {
+			await this.setStateAsync(`cameras.${devId}.video.ready`, false, true);
+			await this.setStateAsync(`cameras.${devId}.video.lastError`, msg, true);
+		} catch (stateErr) {
+			this.log.debug(`Video-Busy-State konnte nicht gesetzt werden (${cam?.name || devId}): ${stateErr?.message || stateErr}`);
+		}
+
+		this.log.info(`Video-Download pausiert für ${cam?.name || devId}: ${msg} (${err?.message || err})`);
 	}
 
 	async onReady() {
@@ -1255,6 +1305,12 @@ class BlinkAdapter extends utils.Adapter {
 					if (state.val !== true) {
 						return;
 					}
+					if (this.isVideoBusyCooldownActive(devId)) {
+						const retryAt = new Date(Date.now() + this.getVideoBusyRemainingMs(devId)).toISOString();
+						await this.setStateAsync(`cameras.${devId}.video.lastError`, `System is busy, retry after ${retryAt}`, true);
+						await this.setStateAsync(this.stripNs(id), false, true);
+						return;
+					}
 					const ts = new Date().toISOString().replace(/[:.]/g, '-');
 					const file = path.join(this.cfg.snapshotDir, `${devId}_${ts}.mp4`);
 					try {
@@ -1268,9 +1324,13 @@ class BlinkAdapter extends utils.Adapter {
 						);
 						await this.updateVideoStates(devId, res);
 					} catch (e) {
-						await this.setStateAsync(`cameras.${devId}.video.ready`, false, true);
-						await this.setStateAsync(`cameras.${devId}.video.lastError`, String(e?.message || e), true);
-						this.log.warn(`Video-Download fehlgeschlagen (${cam.name}): ${e?.message || e}`);
+						if (this.isBlinkSystemBusyError(e)) {
+							await this.markVideoBusy(devId, cam, e);
+						} else {
+							await this.setStateAsync(`cameras.${devId}.video.ready`, false, true);
+							await this.setStateAsync(`cameras.${devId}.video.lastError`, String(e?.message || e), true);
+							this.log.warn(`Video-Download fehlgeschlagen (${cam.name}): ${e?.message || e}`);
+						}
 					}
 					await this.setStateAsync(this.stripNs(id), false, true);
 				} else if (cmd === 'live_request') {
@@ -1329,6 +1389,9 @@ class BlinkAdapter extends utils.Adapter {
 				manifestCacheBySyncId.set(key, m);
 				return m;
 			} catch (e) {
+				if (this.isBlinkSystemBusyError(e)) {
+					throw e;
+				}
 				this.log.debug(`Local-Storage-Manifest nicht abrufbar (sync ${syncId}): ${e?.message || e}`);
 				manifestCacheBySyncId.set(key, null);
 				return null;
@@ -1338,6 +1401,9 @@ class BlinkAdapter extends utils.Adapter {
 		try {
 			for (const cam of cameras) {
 				const devId = this.sanitizeId(cam.id || cam.name);
+				if (this.isVideoBusyCooldownActive(devId)) {
+					continue;
+				}
 				const lastCheck = this.lastVideoCheckByDevId.get(devId) || 0;
 				if (Date.now() - lastCheck < this.videoCheckCooldownMs) {
 					continue;
@@ -1431,9 +1497,17 @@ class BlinkAdapter extends utils.Adapter {
 					try {
 						await this.syncCameraHistory(cam, devId, localManifest);
 					} catch (e) {
+						if (this.isBlinkSystemBusyError(e)) {
+							await this.markVideoBusy(devId, cam, e);
+							continue;
+						}
 						this.log.debug(`History-Sync übersprungen (${cam.name || devId}): ${e?.message || e}`);
 					}
 				} catch (e) {
+					if (this.isBlinkSystemBusyError(e)) {
+						await this.markVideoBusy(devId, cam, e);
+						continue;
+					}
 					this.log.debug(`Cloud-Video Sync übersprungen (${cam.name || devId}): ${e?.message || e}`);
 				}
 			}
@@ -1535,6 +1609,9 @@ class BlinkAdapter extends utils.Adapter {
 					);
 				}
 			} catch (e) {
+				if (this.isBlinkSystemBusyError(e)) {
+					throw e;
+				}
 				this.log.warn(`History-Download fehlgeschlagen (${cam.name} Slot ${i}, clip ${clip.id}): ${e.message}`);
 				return; // Slot-Lauf abbrechen, alte Daten bleiben erhalten
 			}
