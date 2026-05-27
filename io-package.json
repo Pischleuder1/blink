@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "blink",
-    "version": "0.0.10",
+    "version": "0.0.11",
     "news": {
+      "0.0.11": {
+        "en": "maximal 3 login attempts to avoid locked account\nVideo busy cooldown for HTTP 409 / code 307 error",
+        "de": "maximal 3 login versucht, gesperrtes konto zu vermeiden\nVideo-belastete Abklingzeit für HTTP 409 / Code 307 Fehler",
+        "ru": "3 попытки входа, чтобы избежать заблокированного аккаунта\nВидео занято охлаждение HTTP 409 / код 307 ошибка",
+        "pt": "máximo 3 tentativas de login para evitar conta bloqueada\nRemoção do vídeo ocupado para erro HTTP 409 / código 307",
+        "nl": "maximaal 3 aanmeldpogingen om vergrendeld account te vermijden\nVideo drukke afkoeling voor HTTP 409 / code 307 fout",
+        "fr": "maximal 3 tentatives de connexion pour éviter le compte verrouillé\nVidéo occupée pour l'erreur HTTP 409 / code 307",
+        "it": "maximal 3 tentativi di login per evitare il conto bloccato\nVideo cooldown occupato per HTTP 409 / codice 307 errore",
+        "es": "maximal 3 intentos de inicio de sesión para evitar la cuenta bloqueada\nVideo enfriamiento ocupado para HTTP 409 / código 307 error",
+        "pl": "maximal 3 próby logowania, aby uniknąć zablokowanego konta\nOchłodzenie wideo dla błędu HTTP 409 / kod 307",
+        "uk": "максимальний 3 спроби входу, щоб уникнути блокування облікового запису\nВідео зайнятий охолоджувач для HTTP 409 / код 307 помилка",
+        "zh-cn": "最大 3 登录试图避免锁定账户\nHTTP 409 / 代码 307 错误的视频忙于冷却"
+      },
       "0.0.10": {
         "en": "Fix trusted publisher case mismatch",
         "de": "Fehler bei vertrauenswürdigen Verlegern behoben",

@@ -1496,7 +1496,7 @@ All product and company names or logos are trademarks™ or registered® tradema
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
-### **WORK IN PROGRESS**
+### 0.0.11 (2026-05-27)
 * (Pischleuder1) maximal 3 login attempts to avoid locked account
 * Video busy cooldown for HTTP 409 / code 307 error
 
@@ -1515,13 +1515,7 @@ All product and company names or logos are trademarks™ or registered® tradema
 * Supports Smart Detection states for classified motion events
 * Supports cloud stored videos and local stored videos on sc-card
 
-### 0.0.6 (2026-04-28)
-* Blink PanTilt and Blink Mini - temperature_text and battery_text set to "not available" because of no built in temperature and battery indicator
-* blink.0.xxx.xxx.status.wifi_strength fixed
-
-**Note:** For older changes, see [CHANGELOG_OLD.md](CHANGELOG_OLD.md).
-
-## License
+**Note:** For older changes, see [CHANGELOG_OLD.md](CHANGELOG_OLD.md).## License
 
 MIT License
 

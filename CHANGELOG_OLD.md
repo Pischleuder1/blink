@@ -3,6 +3,10 @@
 Older changelog entries that have been moved out of `README.md` will appear below.
 This file is managed by [@alcalzone/release-script](https://github.com/AlCalzone/release-script)
 when newer entries are added to the README.
+## 0.0.6 (2026-04-28)
+* Blink PanTilt and Blink Mini - temperature_text and battery_text set to "not available" because of no built in temperature and battery indicator
+* blink.0.xxx.xxx.status.wifi_strength fixed
+
 ## 0.0.5 (2026-04-27)
 * new admin menu
 * checkbox to turn log on/off
