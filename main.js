@@ -169,8 +169,6 @@ class BlinkAdapter extends utils.Adapter {
 		}
 	}
 
-
-
 	isCredentialError(err) {
 		const msg = String(err?.message || err || '').toLowerCase();
 
@@ -188,7 +186,7 @@ class BlinkAdapter extends utils.Adapter {
 		if (this.loginBlocked) {
 			throw new Error(
 				`Blink Login wurde nach ${this.loginFailureCount} fehlgeschlagenen Versuchen blockiert. ` +
-				`Bitte Zugangsdaten prüfen und Adapter neu starten.`
+					`Bitte Zugangsdaten prüfen und Adapter neu starten.`,
 			);
 		}
 
@@ -205,15 +203,15 @@ class BlinkAdapter extends utils.Adapter {
 
 				this.log.warn(
 					`Blink Login fehlgeschlagen (${this.loginFailureCount}/${this.maxLoginFailures}): ` +
-					`${err?.message || err}`
+						`${err?.message || err}`,
 				);
 
 				if (this.loginFailureCount >= this.maxLoginFailures) {
 					this.loginBlocked = true;
 					this.log.error(
 						`Blink Login wurde nach ${this.maxLoginFailures} Fehlversuchen gestoppt. ` +
-						`Es werden keine weiteren Login-Versuche gestartet, um eine Blink-Sperre zu vermeiden. ` +
-						`Bitte E-Mail/Passwort/PIN prüfen und Adapter neu starten.`
+							`Es werden keine weiteren Login-Versuche gestartet, um eine Blink-Sperre zu vermeiden. ` +
+							`Bitte E-Mail/Passwort/PIN prüfen und Adapter neu starten.`,
 					);
 
 					if (this.pollTimer) {
@@ -264,7 +262,7 @@ class BlinkAdapter extends utils.Adapter {
 		return true;
 	}
 
-	async markVideoBusy(devId, cam, err) {
+	async markVideoBusy(devId, cam, _err) {
 		const until = Date.now() + this.videoBusyCooldownMs;
 		this.videoBusyUntilByDevId.set(devId, until);
 
