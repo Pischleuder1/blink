@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "blink",
-    "version": "0.0.11",
+    "version": "0.0.12",
     "news": {
+      "0.0.12": {
+        "en": "USB/Local Storage manifest is checked first\nCloud storage is now used only as a fallback\nMore robust Local Storage matching: camera_id / cameraId / device_id / deviceId, if present in the manifest otherwise, camera names (trimmed and lowercased)",
+        "de": "USB/Local Storage Manifest wird zuerst überprüft\nCloud-Speicher wird jetzt nur als Fallback verwendet\nRobuster Local Storage Matching: camera id / cameraId / device id / deviceId, wenn im Manifest anders vorhanden, Kameranamen (getrimmt und gesenkt)",
+        "ru": "USB/Local Storage проверяется\nОблачное хранилище теперь используется только в качестве запасного варианта\nБолее надежное соответствие локального хранилища: camera id / cameraId / device id / deviceId, если присутствует в манифесте иное, названия камеры (обрезанные и скомпонованные)",
+        "pt": "Manifesto de armazenamento USB/Local é verificado primeiro\nO armazenamento em nuvem agora é usado apenas como reserva\nCombinação de armazenamento local mais robusta: cameram id / cameramId / device id / deviceId, se presente no manifesto de outra forma, nomes de câmeras (aparados e minúsculas)",
+        "nl": "USB/Local Storage manifest wordt eerst gecontroleerd\nCloudopslag wordt nu alleen gebruikt als terugval\nRobuuster Local Storage matching: camera id / cameraId / device id / deviceId, indien aanwezig in het manifest anders, cameranamen (getrimd en kleine letters)",
+        "fr": "Le manifeste USB/local de stockage est d'abord vérifié\nLe stockage en nuage n'est maintenant utilisé qu'en tant que repli\nPlus robuste Local Storage matching: camera id / cameraId / device id / deviceId, si présent dans le manifeste autrement, noms de caméra (trimmed et lowercased)",
+        "it": "Il manifesto di memorizzazione USB/Local viene controllato prima\nLo storage cloud viene ora utilizzato solo come fallback\nAbbinamento di storage locale più robusto: camera id / cameraId / device id / deviceId, se presente nel manifesto altrimenti, nomi della fotocamera (trimmed e minuscole)",
+        "es": "El manifiesto de almacenamiento USB/Local se comprueba primero\nEl almacenamiento en la nube ahora se utiliza sólo como un retroceso\nAlmacenamiento local más robusto: camera id / cameraId / device id / deviceId, si está presente en el manifiesto de otro modo, nombres de cámara (trimado y reducido)",
+        "pl": "Najpierw jest sprawdzany manifest pamięci USB / Local Storage\nChmura pamięci masowej jest teraz używana tylko jako zapas\nBardziej solidne dopasowanie do pamięci lokalnej: camera _ id / cameraId / device _ id / deviceId, jeżeli w manifeście występują w inny sposób, nazwy kamer (przycięte i przycinane)",
+        "uk": "USB/Local Storage проявляється спочатку\nХмарне сховище тепер використовується тільки як падає\nБільш надійний Local Storage matching: camera id / cameraId / device id / deviceId, якщо присутній в прояві інакше, назви камери (триммовані і знижені)",
+        "zh-cn": "先检查USB/当地储存清单\n云存储器现在仅用作倒置\n更坚固的本地存储匹配: 相机 id / 相机Id / 设备 id / 设备Id, 如果显示在显示器中, 相机名称( trimmed 和 小写)"
+      },
       "0.0.11": {
         "en": "maximal 3 login attempts to avoid locked account\nVideo busy cooldown for HTTP 409 / code 307 error",
         "de": "maximal 3 login versucht, gesperrtes konto zu vermeiden\nVideo-belastete Abklingzeit für HTTP 409 / Code 307 Fehler",
