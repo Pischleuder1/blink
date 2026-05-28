@@ -1496,6 +1496,11 @@ All product and company names or logos are trademarks™ or registered® tradema
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
+
+### **WORK IN PROGRES**
+* If `video.history.*` states still contain clip IDs but the corresponding MP4 files are missing, the history is no longer considered current.
+* Missing or zero-byte history files are redownloaded during the next sync
+* Reuse of old slots now occurs only if the old MP4 file actually exists and is larger than 0 bytes
 ### 0.0.12 (2026-05-28)
 * USB/Local Storage manifest is checked first
 * Cloud storage is now used only as a fallback
