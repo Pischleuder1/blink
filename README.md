@@ -1496,7 +1496,7 @@ All product and company names or logos are trademarks™ or registered® tradema
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
-### **WORK in PROGRESS**
+### **WORK IN PROGRESS**
 * USB/Local Storage manifest is checked first
 * Cloud storage is now used only as a fallback
 * More robust Local Storage matching: camera_id / cameraId / device_id / deviceId, if present in the manifest otherwise, camera names (trimmed and lowercased)
