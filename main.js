@@ -1819,21 +1819,38 @@ class BlinkAdapter extends utils.Adapter {
 			knownIds.push(String(st?.val || ''));
 		}
 
-		// 3) Wenn dieselbe Reihenfolge derselben IDs in den Slots steht, nichts tun.
-		const wantedIds = wanted.map(c => this.getClipId(c));
-		const same = wantedIds.every((id, idx) => id === knownIds[idx]);
-		if (same) {
-			return;
-		}
-
-		// 4) Für jeden Slot festlegen: Reuse aus altem Slot oder neu downloaden?
 		const slotFile = i => path.join(this.cfg.snapshotDir, `${devId}_history_${i}.mp4`);
 		const tmpFile = i => path.join(this.cfg.snapshotDir, `.${devId}_history_${i}.tmp.mp4`);
 
+		const isValidHistoryFile = filePath => {
+			try {
+				const st = fs.statSync(filePath);
+				return st.isFile() && st.size > 0;
+			} catch {
+				return false;
+			}
+		};
+
+		// 3) History gilt nur als aktuell, wenn Clip-IDs UND lokale MP4-Dateien passen.
+		const wantedIds = wanted.map(c => this.getClipId(c));
+		const sameIds = wantedIds.every((id, idx) => id === knownIds[idx]);
+		const sameFilesExist = wantedIds.every((_id, idx) => isValidHistoryFile(slotFile(idx)));
+
+		if (sameIds && sameFilesExist) {
+			return;
+		}
+
+		if (sameIds && !sameFilesExist) {
+			this.log.info(
+				`History-Dateien fehlen oder sind 0 Byte für ${cam.name || devId}; lade betroffene Slots neu.`,
+			);
+		}
+
+		// 4) Für jeden Slot festlegen: Reuse aus altem Slot oder neu downloaden?
 		const sources = new Array(HISTORY_SIZE).fill(null); // 'reuse:<oldIdx>' | 'download'
 		for (let newIdx = 0; newIdx < wanted.length; newIdx++) {
 			const oldIdx = knownIds.indexOf(wantedIds[newIdx]);
-			sources[newIdx] = oldIdx >= 0 ? `reuse:${oldIdx}` : 'download';
+			sources[newIdx] = oldIdx >= 0 && isValidHistoryFile(slotFile(oldIdx)) ? `reuse:${oldIdx}` : 'download';
 		}
 
 		// 4a) Reuse: alte Slot-Datei → Temp-Datei.
