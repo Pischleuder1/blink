@@ -3,6 +3,9 @@
 Older changelog entries that have been moved out of `README.md` will appear below.
 This file is managed by [@alcalzone/release-script](https://github.com/AlCalzone/release-script)
 when newer entries are added to the README.
+## 0.0.8 (2026-05-23)
+* (Pischleuder1) Fix deploy workflow
+
 ## 0.0.7 (2026-05-22)
 * Adapter requires node.js >= 22 now
 * added MJPEG streaming

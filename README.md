@@ -1496,8 +1496,7 @@ All product and company names or logos are trademarks™ or registered® tradema
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
-
-### **WORK IN PROGRESS**
+### 0.0.13 (2026-05-28)
 * If `video.history.*` states still contain clip IDs but the corresponding MP4 files are missing, the history is no longer considered current.
 * Missing or zero-byte history files are redownloaded during the next sync
 * Reuse of old slots now occurs only if the old MP4 file actually exists and is larger than 0 bytes
@@ -1516,6 +1515,3 @@ All product and company names or logos are trademarks™ or registered® tradema
 
 ### 0.0.9 (2026-05-23)
 * (Pischleuder1) Use npm trusted publishing
-
-### 0.0.8 (2026-05-23)
-* (Pischleuder1) Fix deploy workflow
