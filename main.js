@@ -1319,21 +1319,38 @@ class BlinkAdapter extends utils.Adapter {
 			knownIds.push(String(st?.val || ''));
 		}
 
-		// 3) Wenn dieselbe Reihenfolge derselben IDs in den Slots steht, nichts tun.
-		const wantedIds = wanted.map(c => this.getClipId(c));
-		const same = wantedIds.every((id, idx) => id === knownIds[idx]);
-		if (same) {
-			return;
-		}
-
-		// 4) Für jeden Slot festlegen: Reuse aus altem Slot oder neu downloaden?
+		// 3) Slot-Dateien definieren und prüfen, ob vorhandene History-Dateien wirklich existieren.
+		// Wichtig: Wenn cleanupOldSnapshots alte MP4-Dateien gelöscht hat, dürfen identische
+		// Clip-IDs nicht als "fertig" gelten. Fehlende/0-Byte Dateien werden neu geladen.
 		const slotFile = i => path.join(this.cfg.snapshotDir, `${devId}_history_${i}.mp4`);
 		const tmpFile = i => path.join(this.cfg.snapshotDir, `.${devId}_history_${i}.tmp.mp4`);
+		const historyFileExists = filePath => {
+			try {
+				const st = fs.statSync(filePath);
+				return st.isFile() && st.size > 0;
+			} catch {
+				return false;
+			}
+		};
 
+		// 4) Wenn dieselbe Reihenfolge derselben IDs in den Slots steht UND alle Dateien
+		// vorhanden sind, nichts tun. Bei fehlenden Dateien wird neu heruntergeladen.
+		const wantedIds = wanted.map(c => this.getClipId(c));
+		const sameIds = wantedIds.every((id, idx) => id === knownIds[idx]);
+		const sameFilesExist = wantedIds.every((_id, idx) => historyFileExists(slotFile(idx)));
+		if (sameIds && sameFilesExist) {
+			return;
+		}
+		if (sameIds && !sameFilesExist) {
+			this.log.info(`History-Dateien fehlen für ${cam.name || devId}, lade fehlende Slots neu.`);
+		}
+
+		// 5) Für jeden Slot festlegen: Reuse aus altem Slot oder neu downloaden?
+		// Reuse ist nur erlaubt, wenn die alte Datei wirklich existiert und nicht leer ist.
 		const sources = new Array(HISTORY_SIZE).fill(null); // 'reuse:<oldIdx>' | 'download'
 		for (let newIdx = 0; newIdx < wanted.length; newIdx++) {
 			const oldIdx = knownIds.indexOf(wantedIds[newIdx]);
-			sources[newIdx] = oldIdx >= 0 ? `reuse:${oldIdx}` : 'download';
+			sources[newIdx] = oldIdx >= 0 && historyFileExists(slotFile(oldIdx)) ? `reuse:${oldIdx}` : 'download';
 		}
 
 		// 4a) Reuse: alte Slot-Datei → Temp-Datei.
