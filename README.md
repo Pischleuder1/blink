@@ -1496,8 +1496,7 @@ All product and company names or logos are trademarks™ or registered® tradema
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
-
-### **WORK IN PROGRESS**
+### 0.0.14 (2026-05-29)
 * fixed some sync module busy errors
 
 ### 0.0.13 (2026-05-28)
@@ -1516,6 +1515,3 @@ All product and company names or logos are trademarks™ or registered® tradema
 
 ### 0.0.10 (2026-05-23)
 * (Pischleuder1) Fix trusted publisher case mismatch
-
-### 0.0.9 (2026-05-23)
-* (Pischleuder1) Use npm trusted publishing

@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "blink",
-    "version": "0.0.13",
+    "version": "0.0.14",
     "news": {
+      "0.0.14": {
+        "en": "fixed some sync module busy errors",
+        "de": "einige sync-modul geschäftsfehler behoben",
+        "ru": "исправлены некоторые ошибки загрузки модуля синхронизации",
+        "pt": "corrigir alguns erros de ocupado do módulo de sincronização",
+        "nl": "enkele synchronisatiemodule drukke fouten hersteld",
+        "fr": "correction d'erreurs occupées du module de synchronisation",
+        "it": "corretti alcuni errori del modulo di sincronizzazione",
+        "es": "solucionó algunos errores del módulo de sincronización ocupado",
+        "pl": "naprawiono błędy związane z modułem synchronizacji",
+        "uk": "виправлено деякі помилки модуля sync",
+        "zh-cn": "修正一些同步模块繁忙错误"
+      },
       "0.0.13": {
         "en": "If `video.history.*` states still contain clip IDs but the corresponding MP4 files are missing, the history is no longer considered current.\nMissing or zero-byte history files are redownloaded during the next sync\nReuse of old slots now occurs only if the old MP4 file actually exists and is larger than 0 bytes",
         "de": "Wenn `video.history.* ` Zustände noch Clip-IDs enthalten, aber die entsprechenden MP4-Dateien fehlen, wird die Geschichte nicht mehr als aktuell betrachtet.\nFehlende oder Nullbyte-Geschichte-Dateien werden während des nächsten Syncs wiederheruntergeladen\nWiederverwendung von alten Slots erfolgt jetzt nur, wenn die alte MP4-Datei tatsächlich existiert und größer als 0 Bytes ist",
@@ -80,19 +93,6 @@
         "pl": "Blink PanTilt i Blink Mini - temperatura _ tekst i bateria _ tekst ustawić na \"niedostępny\" ze względu na brak wbudowany wskaźnik temperatury i baterii\nblink.0.xxx.xxx.status.wifi _ stand\n \n",
         "uk": "Blink PanTilt і Blink Mini - температура текст і акумулятор текстовий набір до \"не доступний\" через не вбудований індикатор температури і батареї\njavascript licenses api веб-сайт go1.13.8\n \n",
         "zh-cn": "Blink Pantilt 和 Blink Mini - 温度  text 和电池  text 设置为\"不可用\",因为没有在温度和电池指标中构建\n闪烁0.xxxxxx.status.wifi strength 已固定\n \n"
-      },
-      "0.0.5": {
-        "en": "new admin menu, checkbox to turn log on / off\n",
-        "de": "neues Admin-Menü, Checkbox, um Log ein- / auszuschalten\n",
-        "ru": "новое меню администратора, флажок для включения / выключения\n",
-        "pt": "novo menu de administração, caixa de seleção para ligar / desligar\n",
-        "nl": "nieuw adminmenu, selectievakje om log in / uit te zetten\n",
-        "fr": "nouveau menu admin, case à cocher pour activer / désactiver la connexion\n",
-        "it": "nuovo menu admin, casella di controllo per attivare / disattivare\n",
-        "es": "nuevo menú de administración, casilla de verificación para activar / apagar\n",
-        "pl": "nowe menu administratora, pole wyboru, aby włączyć / wyłączyć dziennik\n",
-        "uk": "нове меню адміністратора, прапорець для включення / вимкнення\n",
-        "zh-cn": "新建管理员菜单, 打开/ 关闭日志的复选框\n"
       }
     },
     "titleLang": {
