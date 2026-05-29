@@ -27,6 +27,8 @@ class BlinkAdapter extends utils.Adapter {
 		this.lastVideoCheckByDevId = new Map();
 		this.videoBusyCooldownMs = 2 * 60 * 1000;
 		this.videoBusyUntilByDevId = new Map();
+		this.localStorageBusyCooldownMs = 2 * 60 * 1000;
+		this.localStorageBusyUntilBySyncId = new Map();
 		this.camerasById = new Map();
 		this.syncById = new Map();
 		this.session = null;
@@ -290,6 +292,69 @@ class BlinkAdapter extends utils.Adapter {
 		this.log.info(`Video-Download weiterhin pausiert für ${cam?.name || devId}: ${msg}`);
 	}
 
+	isUsableFile(file) {
+		if (!file) {
+			return false;
+		}
+		try {
+			const st = fs.statSync(file);
+			return st.isFile() && st.size > 0;
+		} catch {
+			return false;
+		}
+	}
+
+	fileSize(file) {
+		try {
+			return fs.statSync(file).size || 0;
+		} catch {
+			return 0;
+		}
+	}
+
+	getLocalStorageBusyRemainingMs(syncId) {
+		const key = String(syncId || '');
+		if (!key) {
+			return 0;
+		}
+
+		const until = this.localStorageBusyUntilBySyncId.get(key) || 0;
+		if (!until) {
+			return 0;
+		}
+
+		const remaining = until - Date.now();
+		if (remaining <= 0) {
+			this.localStorageBusyUntilBySyncId.delete(key);
+			this.log.info(
+				`Local-Storage/USB Cooldown abgelaufen für Sync-Modul ${key}, versuche beim nächsten Abruf erneut.`,
+			);
+			return 0;
+		}
+
+		return remaining;
+	}
+
+	isLocalStorageBusyCooldownActive(syncId) {
+		return this.getLocalStorageBusyRemainingMs(syncId) > 0;
+	}
+
+	markLocalStorageBusy(syncId, networkId, err) {
+		const key = String(syncId || '');
+		if (!key) {
+			return;
+		}
+
+		const until = Date.now() + this.localStorageBusyCooldownMs;
+		this.localStorageBusyUntilBySyncId.set(key, until);
+
+		const retryAt = new Date(until).toISOString();
+		this.log.info(
+			`Local-Storage/USB pausiert für Sync-Modul ${key}` +
+				`${networkId ? ` network_id=${networkId}` : ''}: System is busy, retry after ${retryAt} (${err?.message || err})`,
+		);
+	}
+
 	nameVariants(value) {
 		const raw = String(value || '')
 			.trim()
@@ -423,6 +488,13 @@ class BlinkAdapter extends utils.Adapter {
 			return manifestCacheBySyncId.get(key);
 		}
 
+		if (this.isLocalStorageBusyCooldownActive(key)) {
+			if (manifestCacheBySyncId) {
+				manifestCacheBySyncId.set(key, null);
+			}
+			return null;
+		}
+
 		try {
 			const manifest = await blinkApi.getLocalStorageClips(this.session, networkId, syncId);
 			if (manifestCacheBySyncId) {
@@ -431,7 +503,11 @@ class BlinkAdapter extends utils.Adapter {
 			return manifest;
 		} catch (e) {
 			if (this.isBlinkSystemBusyError(e)) {
-				throw e;
+				this.markLocalStorageBusy(key, networkId, e);
+				if (manifestCacheBySyncId) {
+					manifestCacheBySyncId.set(key, null);
+				}
+				return null;
 			}
 
 			this.log.debug(`Local-Storage-Manifest nicht abrufbar (sync ${syncId}): ${e?.message || e}`);
@@ -1197,13 +1273,16 @@ class BlinkAdapter extends utils.Adapter {
 					const currentTs = String(tsState?.val || '');
 					const currentId = String(idState?.val || '');
 					const currentFile = String(fileState?.val || '');
-					const haveLocalFile = currentFile && fs.existsSync(currentFile);
+					const haveLocalFile = this.isUsableFile(currentFile);
 
 					const isSameVideo =
 						(latestId && currentId && latestId === currentId) ||
 						(latestTs && currentTs && latestTs === currentTs);
 
 					if (isSameVideo && haveLocalFile) {
+						await this.setStateAsync(`cameras.${devId}.video.ready`, true, true);
+						await this.setStateAsync(`cameras.${devId}.video.lastError`, '', true);
+						await this.setStateAsync(`cameras.${devId}.video.size`, this.fileSize(currentFile), true);
 						await this.updateDetectionStates(devId, summary);
 						try {
 							await this.syncCameraHistory(cam, devId, localManifest);
@@ -1319,38 +1398,22 @@ class BlinkAdapter extends utils.Adapter {
 			knownIds.push(String(st?.val || ''));
 		}
 
-		// 3) Slot-Dateien definieren und prüfen, ob vorhandene History-Dateien wirklich existieren.
-		// Wichtig: Wenn cleanupOldSnapshots alte MP4-Dateien gelöscht hat, dürfen identische
-		// Clip-IDs nicht als "fertig" gelten. Fehlende/0-Byte Dateien werden neu geladen.
+		// 3) Wenn dieselbe Reihenfolge derselben IDs in den Slots steht UND die Dateien existieren, nichts tun.
+		const wantedIds = wanted.map(c => this.getClipId(c));
 		const slotFile = i => path.join(this.cfg.snapshotDir, `${devId}_history_${i}.mp4`);
 		const tmpFile = i => path.join(this.cfg.snapshotDir, `.${devId}_history_${i}.tmp.mp4`);
-		const historyFileExists = filePath => {
-			try {
-				const st = fs.statSync(filePath);
-				return st.isFile() && st.size > 0;
-			} catch {
-				return false;
-			}
-		};
 
-		// 4) Wenn dieselbe Reihenfolge derselben IDs in den Slots steht UND alle Dateien
-		// vorhanden sind, nichts tun. Bei fehlenden Dateien wird neu heruntergeladen.
-		const wantedIds = wanted.map(c => this.getClipId(c));
 		const sameIds = wantedIds.every((id, idx) => id === knownIds[idx]);
-		const sameFilesExist = wantedIds.every((_id, idx) => historyFileExists(slotFile(idx)));
+		const sameFilesExist = wantedIds.every((_, idx) => this.isUsableFile(slotFile(idx)));
 		if (sameIds && sameFilesExist) {
 			return;
 		}
-		if (sameIds && !sameFilesExist) {
-			this.log.info(`History-Dateien fehlen für ${cam.name || devId}, lade fehlende Slots neu.`);
-		}
 
-		// 5) Für jeden Slot festlegen: Reuse aus altem Slot oder neu downloaden?
-		// Reuse ist nur erlaubt, wenn die alte Datei wirklich existiert und nicht leer ist.
+		// 4) Für jeden Slot festlegen: Reuse aus altem Slot oder neu downloaden?
 		const sources = new Array(HISTORY_SIZE).fill(null); // 'reuse:<oldIdx>' | 'download'
 		for (let newIdx = 0; newIdx < wanted.length; newIdx++) {
 			const oldIdx = knownIds.indexOf(wantedIds[newIdx]);
-			sources[newIdx] = oldIdx >= 0 && historyFileExists(slotFile(oldIdx)) ? `reuse:${oldIdx}` : 'download';
+			sources[newIdx] = oldIdx >= 0 && this.isUsableFile(slotFile(oldIdx)) ? `reuse:${oldIdx}` : 'download';
 		}
 
 		// 4a) Reuse: alte Slot-Datei → Temp-Datei.
