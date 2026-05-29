@@ -1497,7 +1497,7 @@ All product and company names or logos are trademarks™ or registered® tradema
     ### **WORK IN PROGRESS**
 -->
 
-### WORK IN PROGRESS**
+### **WORK IN PROGRESS**
 * fixed some sync module busy errors
 
 ### 0.0.13 (2026-05-28)
