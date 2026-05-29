@@ -1496,6 +1496,10 @@ All product and company names or logos are trademarks™ or registered® tradema
     Placeholder for the next version (at the beginning of the line):
     ### **WORK IN PROGRESS**
 -->
+
+### WORK IN PROGRESS**
+* fixed some sync module busy errors
+
 ### 0.0.13 (2026-05-28)
 * If `video.history.*` states still contain clip IDs but the corresponding MP4 files are missing, the history is no longer considered current.
 * Missing or zero-byte history files are redownloaded during the next sync
