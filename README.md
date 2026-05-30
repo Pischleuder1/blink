@@ -38,7 +38,7 @@ Fill out your credentials:
 - Supports Smart Detection states for classified motion events (works only on paid cloud services)
 - Supports cloud stored videos and local stored videos on sd-card (SyncModule 2 and XR) via local server on port 8085 - JavaScript needed, see below !
 - The script requires ffmpeg installed and a lot resources if you have a lot cameras and is then only partially suitable for Raspberry Pis (min. 4GB — more is better)
-- initial release for live view with javascript for each camera - required javascript is installed automatically
+- initial release for live view with javascript for each camera - required javascript is installed automatically - except for the old XT2, because it uses a different video stream
 <img width="1388" height="414" alt="image" src="https://github.com/user-attachments/assets/f6446647-c3d5-4cc2-b7e7-1b2a3686424a" />
 
 
