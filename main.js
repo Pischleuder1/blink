@@ -568,6 +568,12 @@ class BlinkAdapter extends utils.Adapter {
 			native: {},
 		});
 
+		await this.setObjectNotExistsAsync('info.account_id', {
+			type: 'state',
+			common: { name: 'Blink Account-ID', type: 'string', role: 'text', read: true, write: false },
+			native: {},
+		});
+
 		try {
 			await this.installBlinkVideoUrlServerScript();
 		} catch (e) {
@@ -686,7 +692,14 @@ class BlinkAdapter extends utils.Adapter {
 	}
 
 	async pollOnce() {
-		const { cameras, syncModules } = await blinkApi.getDevices(this.session);
+		const { cameras, syncModules, accountId } = await blinkApi.getDevices(this.session);
+
+		// Account-ID in einen State schreiben, damit externe Helfer (z. B. das
+		// blink-video-url-server-Script) sie zuverlässig finden, auch wenn noch
+		// nie eine LiveView-Session lief.
+		if (accountId) {
+			await this.setStateAsync('info.account_id', String(accountId), true);
+		}
 
 		for (const mod of syncModules) {
 			const devId = this.sanitizeId(mod.id || mod.name);
