@@ -621,14 +621,6 @@ class BlinkAdapter extends utils.Adapter {
 		const sourceFile = path.join(__dirname, 'lib', 'blink-video-url-server.json');
 
 		try {
-			const existing = await this.getForeignObjectAsync(scriptId);
-			if (existing) {
-				this.log.info(
-					`Blink Video-URL-Server-Script existiert bereits (${scriptId}) – Installation wird übersprungen.`,
-				);
-				return;
-			}
-
 			if (!fs.existsSync(sourceFile)) {
 				this.log.warn(`Blink Video-URL-Server-Vorlage nicht gefunden: ${sourceFile}`);
 				return;
@@ -661,6 +653,52 @@ class BlinkAdapter extends utils.Adapter {
 				return;
 			}
 
+			const templateVersion = String(template?.native?.scriptVersion || '');
+			const existing = await this.getForeignObjectAsync(scriptId);
+
+			if (existing) {
+				const installedVersion = String(existing?.native?.scriptVersion || '');
+
+				// Kein Update, wenn keine Versionsangabe vorhanden ist oder die installierte
+				// Version bereits aktuell/neuer ist.
+				if (!templateVersion || this.compareVersions(templateVersion, installedVersion) <= 0) {
+					this.log.debug(
+						`Blink Video-URL-Server-Script aktuell (installiert: ${installedVersion || 'unbekannt'}, Vorlage: ${templateVersion || 'unbekannt'}) – kein Update.`,
+					);
+					return;
+				}
+
+				// Schutz vor Überschreiben manueller Anpassungen:
+				// Wenn der Nutzer das Script verändert hat (keine von uns gesetzte Version,
+				// oder Marker fehlt), NICHT automatisch überschreiben, sondern nur hinweisen.
+				if (!installedVersion) {
+					this.log.warn(
+						`Blink Video-URL-Server-Script existiert ohne Versionskennung – vermutlich manuell angepasst. ` +
+							`Automatisches Update wird übersprungen, um Anpassungen nicht zu überschreiben. ` +
+							`Bei Bedarf das Script manuell aus lib/blink-video-url-server.json aktualisieren.`,
+					);
+					return;
+				}
+
+				// Update durchführen: Quellcode + Version aktualisieren, aber den vom Nutzer
+				// gewählten enabled-Zustand und dessen native-Felder beibehalten.
+				const updated = {
+					...existing,
+					common: {
+						...existing.common,
+						source,
+					},
+					native: {
+						...(existing.native || {}),
+						scriptVersion: templateVersion,
+					},
+				};
+				await this.setForeignObjectAsync(scriptId, updated);
+				this.log.info(`Blink Video-URL-Server-Script aktualisiert: ${installedVersion} → ${templateVersion}.`);
+				return;
+			}
+
+			// Script existiert noch nicht: frisch anlegen.
 			const obj = {
 				type: 'script',
 				common: {
@@ -672,14 +710,49 @@ class BlinkAdapter extends utils.Adapter {
 					debug: template?.common?.debug === true,
 					verbose: template?.common?.verbose === true,
 				},
-				native: template?.native || {},
+				native: {
+					...(template?.native || {}),
+					scriptVersion: templateVersion,
+				},
 			};
 
 			await this.setForeignObjectAsync(scriptId, obj);
-			this.log.info(`Blink Video-URL-Server-Script wurde angelegt: ${scriptId}`);
+			this.log.info(
+				`Blink Video-URL-Server-Script wurde angelegt (Version ${templateVersion || 'unbekannt'}): ${scriptId}`,
+			);
 		} catch (e) {
-			this.log.warn(`Blink Video-URL-Server-Script konnte nicht angelegt werden: ${e?.message || e}`);
+			this.log.warn(
+				`Blink Video-URL-Server-Script konnte nicht angelegt/aktualisiert werden: ${e?.message || e}`,
+			);
 		}
+	}
+
+	/**
+	 * Vergleicht zwei Versionsstrings im Format x.y.z.
+	 *
+	 * @param {string} a - Erste Version.
+	 * @param {string} b - Zweite Version.
+	 * @returns {number} >0 wenn a neuer als b, <0 wenn a älter, 0 wenn gleich.
+	 */
+	compareVersions(a, b) {
+		const pa = String(a || '0')
+			.split('.')
+			.map(n => parseInt(n, 10) || 0);
+		const pb = String(b || '0')
+			.split('.')
+			.map(n => parseInt(n, 10) || 0);
+		const len = Math.max(pa.length, pb.length);
+		for (let i = 0; i < len; i++) {
+			const da = pa[i] || 0;
+			const db = pb[i] || 0;
+			if (da > db) {
+				return 1;
+			}
+			if (da < db) {
+				return -1;
+			}
+		}
+		return 0;
 	}
 
 	findSyncIdForNetwork(networkId) {
@@ -716,7 +789,7 @@ class BlinkAdapter extends utils.Adapter {
 			this.camerasById.set(devId, cam);
 
 			await this.ensureDeviceObjects(base, cam);
-			await this.setCameraStates(base, cam, devId);
+			await this.setCameraStates(base, cam, devId, accountId);
 
 			// Modellbasierte LiveView-Erkennung (deterministisch, aus der Blink-API):
 			// Klassische Modelle (white/xt/xt2) unterstützen keinen echten LiveView.
@@ -753,6 +826,8 @@ class BlinkAdapter extends utils.Adapter {
 		await this.ensureState(`${base}.info.name`, 'Name', 'string', 'text', false);
 		await this.ensureState(`${base}.info.serial`, 'Serial', 'string', 'text', false);
 		await this.ensureState(`${base}.info.network_id`, 'Netzwerk-ID', 'number', 'value', false);
+		await this.ensureState(`${base}.info.type`, 'Kameramodell (Blink-Typ)', 'string', 'text', false);
+		await this.ensureState(`${base}.info.account_id`, 'Account-ID', 'string', 'text', false);
 
 		await this.ensureState(`${base}.status.battery`, 'Batterie (V)', 'number', 'value.battery', false);
 		await this.ensureState(`${base}.status.battery_raw`, 'Batterie roh', 'number', 'value', false);
@@ -933,7 +1008,7 @@ class BlinkAdapter extends utils.Adapter {
 		await this.initStateIfUnset(`${base}.commands.stop_live`, false);
 	}
 
-	async setCameraStates(base, cam, devId) {
+	async setCameraStates(base, cam, devId, accountId) {
 		await this.setStateAsync(`${base}.info.name`, String(cam.name || ''), true);
 		await this.setStateAsync(`${base}.info.serial`, String(cam.serial || ''), true);
 		await this.setNumStateIfValid(`${base}.info.network_id`, cam.network_id);
@@ -941,6 +1016,14 @@ class BlinkAdapter extends utils.Adapter {
 		const apiType = String(cam.apiType || '').toLowerCase();
 		const nameLc = String(cam.name || '').toLowerCase();
 		const serialLc = String(cam.serial || '').toLowerCase();
+
+		// apiType (owl/doorbell/camera) als State, damit externe Helfer (z. B. das
+		// blink-video-url-server-Script) den korrekten LiveView-Endpoint wählen.
+		await this.setStateAsync(`${base}.info.type`, apiType || 'camera', true);
+		// Account-ID pro Kamera spiegeln (das JS-Script sucht u. a. hier).
+		if (accountId) {
+			await this.setStateAsync(`${base}.info.account_id`, String(accountId), true);
+		}
 
 		await this.setNumStateIfValid(`${base}.status.battery`, cam.battery_volt);
 		await this.setNumStateIfValid(`${base}.status.battery_raw`, cam.battery_raw);
