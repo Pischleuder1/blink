@@ -21,7 +21,7 @@ Fill out your credentials:
 -----------------------------------------------------------------------------------------
 <img width="2364" height="1044" alt="image" src="https://github.com/user-attachments/assets/fc9e9a79-f512-4675-b0f0-e6a998a91894" />
 -----------------------------------------------------------------------------------------
-<img width="2520" height="1206" alt="image" src="https://github.com/user-attachments/assets/c55dfce4-7aa4-4e16-ac2f-c41a7e360726" />
+
 
 
 ## Developer manual
