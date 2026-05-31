@@ -6,9 +6,8 @@
       "0.0.15.alpha.1": {
         "en": "integrated live view for cameras",
         "de": "Live-View für Kameras integriert",
+"ru": "интегрированный живой просмотр для камер"
 },
-    "version": "0.0.14",
-    "news": {
       "0.0.14": {
         "en": "fixed some sync module busy errors",
         "de": "einige sync-modul geschäftsfehler behoben",
