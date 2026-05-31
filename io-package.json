@@ -1,6 +1,12 @@
 {
   "common": {
     "name": "blink",
+"version": "0.0.15.alpha.1",
+    "news": {
+      "0.0.15.alpha.1": {
+        "en": "integrated live view for cameras",
+        "de": "Live-View für Kameras integriert",
+},
     "version": "0.0.14",
     "news": {
       "0.0.14": {
