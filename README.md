@@ -246,6 +246,24 @@ For the **history gallery** query slots 0–9 individually:
 All product and company names or logos are trademarks™ or registered® trademarks of their respective holders. Use of them does not imply any affiliation with or endorsement by them or any associated subsidiaries! This personal project is maintained in spare time and has no business goal. Blink is a trademark of Amazon Technologies, Inc..
 
 ## Changelog
+
+### 0.0.14 (2026-05-29)
+* fixed some sync module busy errors
+
+### 0.0.13 (2026-05-28)
+* If video.history.* states still contain clip IDs but the corresponding MP4 files are missing, the history is no longer considered current.
+* Missing or zero-byte history files are redownloaded during the next sync
+* Reuse of old slots now occurs only if the old MP4 file actually exists and is larger than 0 bytes
+
+### 0.0.12 (2026-05-28)
+* USB/Local Storage manifest is checked first
+* Cloud storage is now used only as a fallback
+* More robust Local Storage matching: camera_id / cameraId / device_id / deviceId, if present in the manifest otherwise, camera names (trimmed and lowercased)
+
+### 0.0.11 (2026-05-27)
+* (Pischleuder1) maximal 3 login attempts to avoid locked account
+* Video busy cooldown for HTTP 409 / code 307 error
+
 ### 0.0.10 (2026-05-23)
 * (Pischleuder1) Fix trusted publisher case mismatch
 
