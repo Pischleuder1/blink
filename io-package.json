@@ -1,7 +1,7 @@
 {
   "common": {
     "name": "blink",
-"version": "0.0.15.alpha.1",
+"version": "0.0.15-alpha.1",
     "news": {
       "0.0.15.alpha.1": {
         "en": "integrated live view for cameras",
