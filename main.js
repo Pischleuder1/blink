@@ -26,6 +26,7 @@ class BlinkAdapter extends utils.Adapter {
 		this.videoSyncInProgress = false;
 		this.videoCheckCooldownMs = 25 * 1000;
 		this.lastVideoCheckByDevId = new Map();
+		this.lastMotionNotifyByDevId = new Map();
 		this.videoBusyUntilByDevId = new Map();
 		this.videoBusyCooldownMs = 2 * 60 * 1000;
 		this.localStorageBusyCooldownMs = 2 * 60 * 1000;
@@ -45,6 +46,7 @@ class BlinkAdapter extends utils.Adapter {
 		this.liveProcesses = new Map();
 		this.hlsServer = null;
 	}
+
 
 	isCredentialError(err) {
 		const msg = String(err?.message || err || '').toLowerCase();
@@ -73,7 +75,7 @@ class BlinkAdapter extends utils.Adapter {
 		if (this.loginBlocked) {
 			throw new Error(
 				`Blink Login wurde nach ${this.loginFailureCount} fehlgeschlagenen Versuchen blockiert. ` +
-					`Bitte Zugangsdaten prüfen und Adapter neu starten.`,
+				`Bitte Zugangsdaten prüfen und Adapter neu starten.`,
 			);
 		}
 
@@ -97,8 +99,8 @@ class BlinkAdapter extends utils.Adapter {
 					this.setState('info.connection', false, true);
 					this.log.error(
 						`Blink Login wurde nach ${this.maxLoginFailures} Fehlversuchen gestoppt. ` +
-							`Es werden keine weiteren Login-Versuche gestartet, um eine Blink-Sperre zu vermeiden. ` +
-							`Bitte E-Mail/Passwort/PIN prüfen und den Adapter neu starten.`,
+						`Es werden keine weiteren Login-Versuche gestartet, um eine Blink-Sperre zu vermeiden. ` +
+						`Bitte E-Mail/Passwort/PIN prüfen und den Adapter neu starten.`,
 					);
 				}
 			}
@@ -106,6 +108,7 @@ class BlinkAdapter extends utils.Adapter {
 			throw err;
 		}
 	}
+
 
 	isBlinkSystemBusyError(err) {
 		const msg = String(err?.message || err || '').toLowerCase();
@@ -148,13 +151,12 @@ class BlinkAdapter extends utils.Adapter {
 			await this.setStateAsync(`cameras.${devId}.video.ready`, false, true);
 			await this.setStateAsync(`cameras.${devId}.video.lastError`, msg, true);
 		} catch (stateErr) {
-			this.log.debug(
-				`Video-Busy-State konnte nicht gesetzt werden (${cam?.name || devId}): ${stateErr?.message || stateErr}`,
-			);
+			this.log.debug(`Video-Busy-State konnte nicht gesetzt werden (${cam?.name || devId}): ${stateErr?.message || stateErr}`);
 		}
 
 		this.log.info(`Video-Download pausiert für ${cam?.name || devId}: ${msg} (${err?.message || err})`);
 	}
+
 
 	async writeVideoBusyCooldownState(devId, cam) {
 		const until = this.videoBusyUntilByDevId.get(devId) || 0;
@@ -170,6 +172,7 @@ class BlinkAdapter extends utils.Adapter {
 
 		this.log.info(`Video-Download weiterhin pausiert für ${cam?.name || devId}: ${msg}`);
 	}
+
 
 	isUsableFile(file) {
 		try {
@@ -205,9 +208,7 @@ class BlinkAdapter extends utils.Adapter {
 		const remaining = until - Date.now();
 		if (remaining <= 0) {
 			this.localStorageBusyUntilBySyncId.delete(key);
-			this.log.info(
-				`Local-Storage/USB Cooldown abgelaufen für Sync-Modul ${key}, versuche beim nächsten Abruf erneut.`,
-			);
+			this.log.info(`Local-Storage/USB Cooldown abgelaufen für Sync-Modul ${key}, versuche beim nächsten Abruf erneut.`);
 			return 0;
 		}
 
@@ -235,15 +236,16 @@ class BlinkAdapter extends utils.Adapter {
 	}
 
 	nameVariants(value) {
-		const raw = String(value || '')
-			.trim()
-			.toLowerCase()
-			.replace(/\s+/g, ' ');
+		const raw = String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
 		if (!raw) {
 			return new Set();
 		}
 
-		const german = raw.replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss');
+		const german = raw
+			.replace(/ä/g, 'ae')
+			.replace(/ö/g, 'oe')
+			.replace(/ü/g, 'ue')
+			.replace(/ß/g, 'ss');
 
 		const folded = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 		const compact = raw.replace(/[^a-z0-9]/g, '');
@@ -279,7 +281,9 @@ class BlinkAdapter extends utils.Adapter {
 			clip?.metadata?.device_id,
 		];
 
-		return values.filter(v => v !== null && v !== undefined && v !== '').map(v => String(v));
+		return values
+			.filter(v => v !== null && v !== undefined && v !== '')
+			.map(v => String(v));
 	}
 
 	getClipCameraNames(clip) {
@@ -293,24 +297,24 @@ class BlinkAdapter extends utils.Adapter {
 			clip?.metadata?.device_name,
 		];
 
-		return values.filter(v => v !== null && v !== undefined && v !== '').map(v => String(v));
+		return values
+			.filter(v => v !== null && v !== undefined && v !== '')
+			.map(v => String(v));
 	}
 
 	getClipId(clip) {
-		return String(
-			clip?.id || clip?.clip_id || clip?.clipId || clip?.video_id || clip?.videoId || clip?.media_id || '',
-		);
+		return String(clip?.id || clip?.clip_id || clip?.clipId || clip?.video_id || clip?.videoId || clip?.media_id || '');
 	}
 
 	getClipTimestamp(clip) {
 		return String(
 			clip?.created_at ||
-				clip?.createdAt ||
-				clip?.timestamp ||
-				clip?.time ||
-				clip?.date ||
-				clip?.updated_at ||
-				'',
+			clip?.createdAt ||
+			clip?.timestamp ||
+			clip?.time ||
+			clip?.date ||
+			clip?.updated_at ||
+			''
 		);
 	}
 
@@ -347,13 +351,21 @@ class BlinkAdapter extends utils.Adapter {
 
 	logLocalStorageNames(localManifest, cam, syncId) {
 		const clips = Array.isArray(localManifest?.clips) ? localManifest.clips : [];
-		const names = [...new Set(clips.flatMap(clip => this.getClipCameraNames(clip)).filter(Boolean))].slice(0, 20);
+		const names = [...new Set(
+			clips
+				.flatMap(clip => this.getClipCameraNames(clip))
+				.filter(Boolean)
+		)].slice(0, 20);
 
-		const ids = [...new Set(clips.flatMap(clip => this.getClipCameraIds(clip)).filter(Boolean))].slice(0, 20);
+		const ids = [...new Set(
+			clips
+				.flatMap(clip => this.getClipCameraIds(clip))
+				.filter(Boolean)
+		)].slice(0, 20);
 
 		this.log.debug(
 			`Local-Storage: keine Clips passend zu "${cam?.name || ''}" id=${cam?.id || ''} sync=${syncId || ''}. ` +
-				`Manifest-Kameras: names=[${names.join(', ')}], ids=[${ids.join(', ')}]`,
+			`Manifest-Kameras: names=[${names.join(', ')}], ids=[${ids.join(', ')}]`
 		);
 	}
 
@@ -492,13 +504,51 @@ class BlinkAdapter extends utils.Adapter {
 		const maxSnapshotAgeHours = Math.max(1, Number(this.config.maxSnapshotAgeHours) || 24);
 		const batteryWarningEnabled = this.config.batteryWarningEnabled === true;
 		const batteryWarningThresholdVolt = Number(this.config.batteryWarningThresholdVolt) || 1.1;
-		const batteryWarningPushoverInst = (this.config.batteryWarningPushoverInstance || 'pushover.0').trim();
 		const batteryWarningCooldownHours = Math.max(1, Number(this.config.batteryWarningCooldownHours) || 24);
+
+		// Benachrichtigungskanäle – getrennt pro Auslöser (Batterie / Bewegung).
+		// Jeder Kanal ist einzeln aktivierbar; alle aktivierten werden bedient.
+		const notify = {
+			battery: {
+				telegram: {
+					enabled: this.config.battery_telegram_enabled === true,
+					instance: (this.config.battery_telegram_instance || 'telegram.0').trim(),
+					users: (this.config.battery_telegram_users || '').trim(),
+				},
+				pushover: {
+					enabled: this.config.battery_pushover_enabled === true,
+					instance: (this.config.battery_pushover_instance || 'pushover.0').trim(),
+				},
+				email: {
+					enabled: this.config.battery_email_enabled === true,
+					instance: (this.config.battery_email_instance || 'email.0').trim(),
+					to: (this.config.battery_email_to || '').trim(),
+				},
+			},
+			motion: {
+				enabled: this.config.motionNotifyEnabled === true,
+				cooldownMinutes: Math.max(1, Number(this.config.motionNotifyCooldownMinutes) || 5),
+				telegram: {
+					enabled: this.config.motion_telegram_enabled === true,
+					instance: (this.config.motion_telegram_instance || 'telegram.0').trim(),
+					users: (this.config.motion_telegram_users || '').trim(),
+				},
+				pushover: {
+					enabled: this.config.motion_pushover_enabled === true,
+					instance: (this.config.motion_pushover_instance || 'pushover.0').trim(),
+				},
+				email: {
+					enabled: this.config.motion_email_enabled === true,
+					instance: (this.config.motion_email_instance || 'email.0').trim(),
+					to: (this.config.motion_email_to || '').trim(),
+				},
+			},
+		};
 
 		// MJPEG-Streaming-Konfiguration (alle Felder optional, Streaming ist opt-in)
 		const streamEnabled = this.config.streamEnabled === true;
 		const streamPort = Math.max(1024, Math.min(65535, Number(this.config.streamPort) || 8089));
-		const hlsPort = Math.max(1024, Math.min(65535, Number(this.config.hlsPort) || streamPort + 1));
+		const hlsPort = Math.max(1024, Math.min(65535, Number(this.config.hlsPort) || (streamPort + 1)));
 		let streamToken = (this.config.streamToken || '').trim();
 		const streamPublicHost = (this.config.streamPublicHost || '').trim();
 		const streamWiredIntervalSec = Math.max(5, Number(this.config.streamWiredIntervalSec) || 8);
@@ -537,8 +587,8 @@ class BlinkAdapter extends utils.Adapter {
 			maxSnapshotAgeHours,
 			batteryWarningEnabled,
 			batteryWarningThresholdVolt,
-			batteryWarningPushoverInst,
 			batteryWarningCooldownHours,
+			notify,
 			streamEnabled,
 			streamPort,
 			hlsPort,
@@ -615,6 +665,7 @@ class BlinkAdapter extends utils.Adapter {
 			);
 		}
 	}
+
 
 	async installBlinkVideoUrlServerScript() {
 		const scriptId = 'script.js.common.blink-video-url-server';
@@ -694,7 +745,9 @@ class BlinkAdapter extends utils.Adapter {
 					},
 				};
 				await this.setForeignObjectAsync(scriptId, updated);
-				this.log.info(`Blink Video-URL-Server-Script aktualisiert: ${installedVersion} → ${templateVersion}.`);
+				this.log.info(
+					`Blink Video-URL-Server-Script aktualisiert: ${installedVersion} → ${templateVersion}.`,
+				);
 				return;
 			}
 
@@ -717,13 +770,9 @@ class BlinkAdapter extends utils.Adapter {
 			};
 
 			await this.setForeignObjectAsync(scriptId, obj);
-			this.log.info(
-				`Blink Video-URL-Server-Script wurde angelegt (Version ${templateVersion || 'unbekannt'}): ${scriptId}`,
-			);
+			this.log.info(`Blink Video-URL-Server-Script wurde angelegt (Version ${templateVersion || 'unbekannt'}): ${scriptId}`);
 		} catch (e) {
-			this.log.warn(
-				`Blink Video-URL-Server-Script konnte nicht angelegt/aktualisiert werden: ${e?.message || e}`,
-			);
+			this.log.warn(`Blink Video-URL-Server-Script konnte nicht angelegt/aktualisiert werden: ${e?.message || e}`);
 		}
 	}
 
@@ -1242,11 +1291,12 @@ class BlinkAdapter extends utils.Adapter {
 		return 'localhost';
 	}
 
+
 	async startHlsServer() {
 		if (this.hlsServer) {
 			return;
 		}
-		const port = Number(this.cfg.hlsPort) || Number(this.cfg.streamPort) + 1 || 8090;
+		const port = Number(this.cfg.hlsPort) || (Number(this.cfg.streamPort) + 1) || 8090;
 		const rootDir = path.join(this.cfg.snapshotDir, 'live');
 		const MIME = {
 			'.m3u8': 'application/vnd.apple.mpegurl',
@@ -1298,8 +1348,8 @@ class BlinkAdapter extends utils.Adapter {
 						'Content-Type': MIME[ext] || 'application/octet-stream',
 						'Content-Length': stat.size,
 						'Cache-Control': 'no-cache, no-store, must-revalidate',
-						Pragma: 'no-cache',
-						Expires: '0',
+						'Pragma': 'no-cache',
+						'Expires': '0',
 					});
 					fs.createReadStream(normPath).pipe(res);
 				});
@@ -1332,12 +1382,17 @@ class BlinkAdapter extends utils.Adapter {
 		});
 	}
 
+
 	resolveFfmpegBinary() {
 		const configured = String(this.config.ffmpegPath || this.cfg?.ffmpegPath || '').trim();
 		if (configured && fs.existsSync(configured)) {
 			return configured;
 		}
-		const candidates = ['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/bin/ffmpeg'];
+		const candidates = [
+			'/usr/bin/ffmpeg',
+			'/usr/local/bin/ffmpeg',
+			'/bin/ffmpeg',
+		];
 		for (const candidate of candidates) {
 			try {
 				if (fs.existsSync(candidate)) {
@@ -1466,25 +1521,16 @@ class BlinkAdapter extends utils.Adapter {
 		}
 
 		const args = [
-			'-rtsp_transport',
-			'tcp',
-			'-i',
-			String(live.sourceUrl || ''),
+			'-rtsp_transport', 'tcp',
+			'-i', String(live.sourceUrl || ''),
 			'-an',
-			'-c:v',
-			'copy',
-			'-t',
-			'30',
-			'-f',
-			'hls',
-			'-hls_time',
-			'1',
-			'-hls_list_size',
-			'10',
-			'-hls_flags',
-			'delete_segments+append_list+independent_segments',
-			'-hls_segment_filename',
-			path.join(outDir, 'seg_%03d.ts'),
+			'-c:v', 'copy',
+			'-t', '30',
+			'-f', 'hls',
+			'-hls_time', '1',
+			'-hls_list_size', '10',
+			'-hls_flags', 'delete_segments+append_list+independent_segments',
+			'-hls_segment_filename', path.join(outDir, 'seg_%03d.ts'),
 			playlist,
 		];
 
@@ -1632,9 +1678,7 @@ class BlinkAdapter extends utils.Adapter {
 						try {
 							await this.setStateAsync(unsupportedStateId, true, true);
 						} catch (markErr) {
-							this.log.debug(
-								`unsupported-Marker konnte nicht gesetzt werden: ${markErr?.message || markErr}`,
-							);
+							this.log.debug(`unsupported-Marker konnte nicht gesetzt werden: ${markErr?.message || markErr}`);
 						}
 					} else {
 						this.log.warn(
@@ -1818,9 +1862,7 @@ class BlinkAdapter extends utils.Adapter {
 						try {
 							await this.syncCameraHistory(cam, devId, res.localManifest || null);
 						} catch (histErr) {
-							this.log.debug(
-								`History-Sync nach manuellem Download übersprungen (${cam.name || devId}): ${histErr?.message || histErr}`,
-							);
+							this.log.debug(`History-Sync nach manuellem Download übersprungen (${cam.name || devId}): ${histErr?.message || histErr}`);
 						}
 					} catch (e) {
 						if (this.isBlinkSystemBusyError(e)) {
@@ -2022,6 +2064,14 @@ class BlinkAdapter extends utils.Adapter {
 
 					await this.updateVideoStates(devId, res);
 
+					// Bewegungsbenachrichtigung: Es wurde ein NEUES Video heruntergeladen
+					// (isSameVideo war false), das entspricht einer neuen Aufnahme/Bewegung.
+					try {
+						await this.notifyMotion(devId, cam, latestTs);
+					} catch (e) {
+						this.log.debug(`Bewegungsbenachrichtigung übersprungen (${cam.name || devId}): ${e?.message || e}`);
+					}
+
 					// Galerie pflegen – Local-Storage zuerst, Cloud nur Fallback.
 					try {
 						await this.syncCameraHistory(cam, devId, localManifest);
@@ -2041,6 +2091,7 @@ class BlinkAdapter extends utils.Adapter {
 			this.videoSyncInProgress = false;
 		}
 	}
+
 
 	/**
 	 * Pflegt die Galerie der 10 neuesten Clips einer Kamera als Ring-Buffer.
@@ -2077,11 +2128,13 @@ class BlinkAdapter extends utils.Adapter {
 		// 2) Cloud nur als Fallback.
 		if (!wanted.length) {
 			try {
-				const result = await blinkApi.getHistoryClips(this.session, cam.network_id, cam.id, cam.name, {
-					syncId,
-					localManifest,
-					limit: HISTORY_SIZE,
-				});
+				const result = await blinkApi.getHistoryClips(
+					this.session,
+					cam.network_id,
+					cam.id,
+					cam.name,
+					{ syncId, localManifest, limit: HISTORY_SIZE },
+				);
 
 				wanted = Array.isArray(result?.clips) ? result.clips.slice(0, HISTORY_SIZE) : [];
 				source = result?.source || 'cloud';
@@ -2127,9 +2180,7 @@ class BlinkAdapter extends utils.Adapter {
 		}
 
 		if (sameIds && !sameFilesExist) {
-			this.log.info(
-				`History-Dateien fehlen oder sind 0 Byte für ${cam.name || devId}; lade betroffene Slots neu.`,
-			);
+			this.log.info(`History-Dateien fehlen oder sind 0 Byte für ${cam.name || devId}; lade betroffene Slots neu.`);
 		}
 
 		// 4) Für jeden Slot festlegen: Reuse aus altem Slot oder neu downloaden?
@@ -2187,9 +2238,7 @@ class BlinkAdapter extends utils.Adapter {
 					return; // Nur diese Kamera/dieses Sync-Modul pausieren, andere Kameras laufen weiter.
 				}
 
-				this.log.warn(
-					`History-Download fehlgeschlagen (${cam.name} Slot ${i}, clip ${this.getClipId(clip)}): ${e.message}`,
-				);
+				this.log.warn(`History-Download fehlgeschlagen (${cam.name} Slot ${i}, clip ${this.getClipId(clip)}): ${e.message}`);
 				return; // Slot-Lauf abbrechen, alte Daten bleiben erhalten
 			}
 		}
@@ -2228,6 +2277,7 @@ class BlinkAdapter extends utils.Adapter {
 		this.log.debug(`History aktualisiert für ${cam.name}: ${wanted.length} Slots (${source})`);
 	}
 
+
 	async updateDetectionStates(devId, summary) {
 		await this.setStateAsync(`cameras.${devId}.status.smart_detection`, !!summary?.smart_detection, true);
 		await this.setStateAsync(`cameras.${devId}.status.person_detected`, !!summary?.person_detected, true);
@@ -2253,6 +2303,123 @@ class BlinkAdapter extends utils.Adapter {
 		await this.setStateAsync(`cameras.${devId}.video.ready`, true, true);
 		await this.setStateAsync(`cameras.${devId}.video.lastError`, '', true);
 		await this.updateDetectionStates(devId, res);
+	}
+
+	/**
+	 * Versendet eine Benachrichtigung über alle aktivierten Kanäle eines Auslösers.
+	 *
+	 * @param {object} channelCfg - Kanal-Konfiguration (z. B. this.cfg.notify.battery).
+	 * @param {string} title - Titel/Betreff der Nachricht.
+	 * @param {string} message - Nachrichtentext.
+	 * @returns {Promise<string[]>} Liste der Kanäle, an die erfolgreich gesendet wurde.
+	 */
+	async sendNotification(channelCfg, title, message) {
+		const sent = [];
+		if (!channelCfg) {
+			return sent;
+		}
+
+		// Telegram
+		if (channelCfg.telegram?.enabled && channelCfg.telegram.instance) {
+			try {
+				const payload = { text: `${title}\n\n${message}` };
+				const users = channelCfg.telegram.users;
+				if (users) {
+					// Mehrere User kommagetrennt – an jeden einzeln senden.
+					for (const user of users.split(',').map(u => u.trim()).filter(Boolean)) {
+						await this.sendToAsync(channelCfg.telegram.instance, 'send', { ...payload, user });
+					}
+				} else {
+					await this.sendToAsync(channelCfg.telegram.instance, 'send', payload);
+				}
+				sent.push('telegram');
+			} catch (e) {
+				this.log.warn(`Telegram-Benachrichtigung fehlgeschlagen: ${e?.message || e}`);
+			}
+		}
+
+		// Pushover
+		if (channelCfg.pushover?.enabled && channelCfg.pushover.instance) {
+			try {
+				await this.sendToAsync(channelCfg.pushover.instance, 'send', {
+					title,
+					message,
+					priority: 0,
+				});
+				sent.push('pushover');
+			} catch (e) {
+				this.log.warn(`Pushover-Benachrichtigung fehlgeschlagen: ${e?.message || e}`);
+			}
+		}
+
+		// E-Mail
+		if (channelCfg.email?.enabled && channelCfg.email.instance) {
+			try {
+				const mail = { subject: title, text: message };
+				if (channelCfg.email.to) {
+					mail.to = channelCfg.email.to;
+				}
+				await this.sendToAsync(channelCfg.email.instance, 'send', mail);
+				sent.push('email');
+			} catch (e) {
+				this.log.warn(`E-Mail-Benachrichtigung fehlgeschlagen: ${e?.message || e}`);
+			}
+		}
+
+		return sent;
+	}
+
+	/**
+	 * Promise-Wrapper um adapter.sendTo mit Fehlerbehandlung.
+	 *
+	 * @param {string} instance - Ziel-Instanz (z. B. 'email.0').
+	 * @param {string} command - sendTo-Kommando (in der Regel 'send').
+	 * @param {object} payload - Nachrichten-Payload.
+	 * @returns {Promise<object>} Antwort der Ziel-Instanz.
+	 */
+	sendToAsync(instance, command, payload) {
+		return new Promise((resolve, reject) => {
+			this.sendTo(instance, command, payload, res => {
+				if (res && res.error) {
+					reject(new Error(String(res.error)));
+				} else {
+					resolve(res);
+				}
+			});
+		});
+	}
+
+	/**
+	 * Löst eine Bewegungsbenachrichtigung für eine Kamera aus, sofern aktiviert
+	 * und der Cooldown nicht greift.
+	 *
+	 * @param {string} devId - Bereinigte Geräte-ID.
+	 * @param {object} cam - Kamera-Objekt.
+	 * @param {string} [videoTs] - Zeitstempel des neuen Videos.
+	 * @returns {Promise<void>}
+	 */
+	async notifyMotion(devId, cam, videoTs) {
+		const motionCfg = this.cfg.notify?.motion;
+		if (!motionCfg || !motionCfg.enabled) {
+			return;
+		}
+
+		const cooldownMs = motionCfg.cooldownMinutes * 60 * 1000;
+		const last = this.lastMotionNotifyByDevId.get(devId) || 0;
+		if (last && Date.now() - last < cooldownMs) {
+			this.log.debug(`Bewegungsbenachrichtigung (${cam.name || devId}) im Cooldown – übersprungen.`);
+			return;
+		}
+
+		const when = videoTs ? new Date(videoTs).toLocaleString('de-DE') : new Date().toLocaleString('de-DE');
+		const title = 'Blink Bewegung erkannt';
+		const message = `Kamera: ${cam.name || devId}\nZeit: ${when}`;
+
+		const sent = await this.sendNotification(motionCfg, title, message);
+		if (sent.length) {
+			this.lastMotionNotifyByDevId.set(devId, Date.now());
+			this.log.debug(`Bewegungsbenachrichtigung (${cam.name || devId}) gesendet über: ${sent.join(', ')}`);
+		}
 	}
 
 	async checkBatteryWarning(devId, cam) {
@@ -2307,19 +2474,13 @@ class BlinkAdapter extends utils.Adapter {
 		const msg = `Blink Batterie niedrig\n\nKamera: ${cam.name || devId}\nSpannung: ${volt.toFixed(2)} V\nGrenzwert: ${thresh.toFixed(2)} V`;
 		await this.setStateAsync(`${base}.battery.lastMessage`, msg, true);
 
-		try {
-			await new Promise((res, rej) => {
-				this.sendTo(
-					this.cfg.batteryWarningPushoverInst,
-					'send',
-					{ title: 'Blink Batterie niedrig', message: msg, priority: 0 },
-					r => (r?.error ? rej(new Error(String(r.error))) : res(r)),
-				);
-			});
+		const sent = await this.sendNotification(this.cfg.notify?.battery, 'Blink Batterie niedrig', msg);
+		if (sent.length) {
 			await this.setStateAsync(`${base}.battery.warningSent`, true, true);
 			await this.setStateAsync(`${base}.battery.lastWarning`, new Date().toISOString(), true);
-		} catch (e) {
-			this.log.warn(`Pushover-Warnung fehlgeschlagen (${cam.name}): ${e?.message || e}`);
+			this.log.debug(`Batteriewarnung (${cam.name || devId}) gesendet über: ${sent.join(', ')}`);
+		} else {
+			this.log.debug(`Batteriewarnung (${cam.name || devId}): kein Kanal aktiv/erfolgreich.`);
 		}
 	}
 
